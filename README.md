@@ -1,6 +1,6 @@
 # macOS Gatekeeper Revocation Bypass via Network-Layer Attacks
 
-**Author:** Flow Girl  
+**Author:** Hana Omori  
 **Publication Date:** August 2026  
 **Apple Security Bounty Ticket:** OE1107167498810  
 **CVE Request:** [UNVERIFIED — CVE Request CAN-2026-2035261 submitted to MITRE CNA-LR, August 5, 2026; MITRE record not yet in repo]  
@@ -96,7 +96,7 @@ See `LICENSE` for the full legal code.
 ```bibtex
 @misc{flowgirl2026gatekeeper,
   title={macOS Gatekeeper Revocation Bypass via Network-Layer Attacks},
-  author={Flow Girl},
+  author={Hana Omori},
   year={2026},
   month={August},
   howpublished={YouTube video},

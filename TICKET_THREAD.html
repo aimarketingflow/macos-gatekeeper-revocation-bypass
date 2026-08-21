@@ -140,7 +140,7 @@
 <div class="ticket-meta">
   <p><strong>Ticket ID:</strong> OE1107167498810</p>
   <p><strong>Title:</strong> DNS Poisoning of OCSP/Notarization Servers Downgrades Revoked Certificate Hard Block to User-Bypassable Prompt</p>
-  <p><strong>Reported by:</strong> Flow Girl (Researcher Handle)</p>
+  <p><strong>Reported by:</strong> Hana Omori (Researcher Handle)</p>
   <p><strong>Reported on:</strong> July 9, 2026, 6:56 PM</p>
   <p><strong>Final Apple response:</strong> August 3, 2026, 6:10 PM — "working as expected... not security... will no longer be tracking this issue"</p>
   <p><strong>Current status:</strong> Closed (by Apple)</p>
@@ -155,7 +155,7 @@
 <!-- July 9: Initial submission -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 9, 2026, 6:56 PM</span>
   </div>
   <div class="message-body">Initial report submitted: DNS Poisoning of OCSP/Notarization Servers Downgrades Revoked Certificate Hard Block to User-Bypassable Prompt</div>
@@ -176,7 +176,7 @@
 <!-- July 14: Researcher rebuttal -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 14, 2026, 2:17 PM</span>
   </div>
   <div class="message-body">There is no gatekeeper warning on the open in the video. Can you explain further?</div>
@@ -184,7 +184,7 @@
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 14, 2026, 2:25 PM</span>
   </div>
   <div class="message-body">Thank you for your response. I believe there is a critical misunderstanding of the reported behavior. I'd like to address both claims individually, with specific evidence.
@@ -227,7 +227,7 @@ This is not equivalent to a user "choosing to open software despite a warning." 
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 14, 2026, 2:33 PM</span>
   </div>
   <div class="message-body">Additional evidence (attached)
@@ -256,7 +256,7 @@ d) Post-update verification (July 14, 2026) — macOS 26.5.2 (Build 25F84): vali
 <!-- July 14: Researcher provides controlled comparison -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 14, 2026, 7:20 PM</span>
   </div>
   <div class="message-body">Here you are - video that shows normal behavior from today on same device + the logs comparing between the two sides.</div>
@@ -265,7 +265,7 @@ d) Post-update verification (July 14, 2026) — macOS 26.5.2 (Build 25F84): vali
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 14, 2026, 7:22 PM</span>
   </div>
   <div class="message-body">*Between the two states of the device (under attack vs not under attack)</div>
@@ -274,7 +274,7 @@ d) Post-update verification (July 14, 2026) — macOS 26.5.2 (Build 25F84): vali
 <!-- July 15: WiFi-only attack confirmation -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 15, 2026, 11:53 AM</span>
   </div>
   <div class="message-body">Ticket Update — July 15, 2026: WiFi-Only DNS Poisoning Bypass Confirmed (PART 1 of 2)
@@ -356,7 +356,7 @@ Key observation from traffic capture: trustd made 44 OCSP queries in 4 minutes �
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 15, 2026, 11:54 AM</span>
   </div>
   <div class="message-body">Evidence Package (Updated) - PART 2 of 2
@@ -417,7 +417,7 @@ Test certificate: Developer ID Application: OpenAI, L.L.C. (2DC432GLL2), serial 
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 15, 2026, 12:17 PM</span>
   </div>
   <div class="message-body">Follow-up: Victim-side unified logs from today's WiFi DNS poisoning bypass
@@ -450,7 +450,7 @@ See README.md in the zip for full log descriptions.</div>
 <!-- July 23: Researcher discovers Apple's fix -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 23, 2026, 2:53 PM</span>
   </div>
   <div class="message-body">Hi,
@@ -485,7 +485,7 @@ Thank you for your time.</div>
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 23, 2026, 3:04 PM</span>
   </div>
   <div class="message-body">One additional note — after analyzing the CRLite update, I want to clarify that while the valid.sqlite3 v50 update mitigates the specific certificates I used in testing, the architectural vulnerability remains:
@@ -503,7 +503,7 @@ I mention this not to diminish the fix, but to note that a complete resolution w
 <!-- July 24: Researcher corrects mechanism -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 24, 2026, 7:26 PM</span>
   </div>
   <div class="message-body">Clarification and update to my July 23 comment:
@@ -554,7 +554,7 @@ I am attaching victim-side video recordings from today's retest (under attack vs
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 24, 2026, 7:27 PM</span>
   </div>
   <div class="message-body">Attachment didn't go through here it is</div>
@@ -583,7 +583,7 @@ In particular, "ocsp responder: ... did not include status of requested cert" is
 <!-- July 28: Researcher's detailed rebuttal -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 28, 2026, 9:18 PM</span>
   </div>
   <div class="message-body">Thanks for the detailed technical response and the source references. We appreciate the transparency and the team's time.
@@ -665,7 +665,7 @@ On the underlying design question, we understand you are not disputing the soft 
 <!-- July 29: Researcher's point-by-point rebuttal -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 29, 2026, 1:15 PM</span>
   </div>
   <div class="message-body">Thank you for the detailed review. I'd like to address each point, as the conclusions drawn are incorrect.
@@ -734,7 +734,7 @@ I am attaching the control video and the certificate serial verification for bot
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 29, 2026, 1:50 PM</span>
   </div>
   <div class="message-body">Since my earlier reply today, I've extracted the trustd and syspolicyd logs from both machines' sysdiagnose archives. These are the revocation logs you stated were missing. I'm also attaching a control video recorded today on a second Mac.
@@ -805,7 +805,7 @@ The sysdiagnose archives for both machines are available on request.</div>
 <!-- July 30: Source code analysis -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Jul 30, 2026, 12:50 PM</span>
   </div>
   <div class="message-body">Source Code Analysis — Following Up on Your July 28 Reference
@@ -913,7 +913,7 @@ Per https://security.apple.com/bounty/guidelines/, we request reassessment.</div
 <!-- August 4: Researcher announces publication -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Aug 4, 2026, 1:13 PM</span>
   </div>
   <div class="message-body">Thank you for the confirmation. We understand Apple's position that this behavior is working as expected and not considered a security issue.
@@ -937,7 +937,7 @@ Also - can you please clarify what the criteria for breaking gatekeeper is on th
 <!-- August 5: Researcher presses for specifics -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Aug 5, 2026, 12:18 PM</span>
   </div>
   <div class="message-body">According to the guidelines page I fulfilled every requirement - that's why I need clarification.
@@ -967,7 +967,7 @@ We are closing this report. Thank you again for the time you put into this.</div
 <!-- August 6: Researcher's final responses -->
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Aug 6, 2026, 1:23 PM</span>
   </div>
   <div class="message-body">The checks are bypassed because if they weren't the app would be rejected as malware :) can you please clarify further?</div>
@@ -975,7 +975,7 @@ We are closing this report. Thank you again for the time you put into this.</div
 
 <div class="message researcher">
   <div class="message-header">
-    <span class="message-author">Flow Girl</span>
+    <span class="message-author">Hana Omori</span>
     <span class="message-date">Aug 6, 2026, 1:29 PM</span>
   </div>
   <div class="message-body">Per your words - if the tool fails open when blocked - that means that when blocked it automatically opens - is that not a bypass because it was intentionally designed to be able to break that way?</div>
