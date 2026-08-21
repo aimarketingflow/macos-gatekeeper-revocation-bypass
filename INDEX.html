@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>macOS Gatekeeper Revocation Bypass — Public Release Package</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --border: #e2e6ea;
+    --accent: #2c3e50;
+    --accent-light: #3498db;
+    --text: #1b2838;
+    --text-muted: #5a6978;
+    --banner-bg: #fef3cd;
+    --banner-border: #ffc107;
+    --banner-text: #856404;
+    --yt-red: #e63946;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 2rem;
+    line-height: 1.6;
+  }
+  h1 {
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+  .banner {
+    background: var(--banner-bg);
+    border: 1px solid var(--banner-border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 0.88rem;
+    color: var(--banner-text);
+    margin-bottom: 2rem;
+  }
+  .yt-cta {
+    display: inline-block;
+    background: var(--yt-red);
+    color: #fff;
+    padding: 0.7rem 1.4rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    transition: background 0.15s;
+  }
+  .yt-cta:hover { background: #c1121f; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+  .card h2 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card h2 .icon {
+    font-size: 1.2rem;
+  }
+  .card ul {
+    list-style: none;
+    padding: 0;
+  }
+  .card li {
+    margin-bottom: 0.35rem;
+  }
+  .card a {
+    color: var(--accent-light);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+  .card a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .card .desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.4rem;
+  }
+  .main-link {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+    transition: background 0.15s;
+  }
+  .main-link:hover { background: #1a252f; }
+</style>
+</head>
+<body>
+
+<h1>macOS Gatekeeper Revocation Bypass via Network-Layer Attacks</h1>
+<p class="subtitle">Flow Girl &bull; August 2026 &bull; Apple Ticket OE1107167498810 &bull; CVE Request [UNVERIFIED — CAN-2026-2035261]</p>
+
+<div class="banner">
+  <strong>About this package:</strong> This repository documents a Gatekeeper revocation bypass in macOS Tahoe where DNS poisoning of OCSP responders causes <code>trustd</code> to fail open, allowing revoked-certificate apps to launch. Apple closed the bounty ticket stating "this is not security." No exploit code or weaponized tooling is included.
+</div>
+
+<a class="yt-cta" href="https://youtu.be/4MXjfBAxc9I">▶ Watch on YouTube</a>
+
+<br>
+
+<a class="main-link" href="https://github.com/aimarketingflow/macos-gatekeeper-revocation-bypass">View on GitHub</a>
+<a class="main-link" href="PAPER.html">Open Technical Paper</a>
+
+<div class="grid">
+
+  <div class="card">
+    <h2><span class="icon">📄</span> Documents</h2>
+    <ul>
+      <li><a href="README.md">README.md</a> — Repository overview, abstract, disclosure timeline</li>
+      <li><a href="PAPER.html">PAPER.html</a> — Full technical paper (open in browser)</li>
+      <li><a href="TICKET_THREAD.html">TICKET_THREAD.html</a> — Complete Apple ticket thread (Jul 9 – Aug 6, 2026)</li>
+      <li><a href="EVIDENCE_EXCERPT.txt">EVIDENCE_EXCERPT.txt</a> — Curated log excerpts from Campaign 6.0</li>
+    </ul>
+    <p class="desc">All documents use relative paths and work offline</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">🖼</span> Figures</h2>
+    <ul>
+      <li><a href="figures/figure-01-three-channel-blindness.png">Figure 1 — Three-Channel Blindness</a></li>
+      <li><a href="figures/figure-02-security-boundary-crossed.png">Figure 2 — Security Boundary Crossed</a></li>
+      <li><a href="figures/figure-03-triple-failure-flow.png">Figure 3 — Triple Failure Flow</a></li>
+      <li><a href="figures/figure-04-cache-coverage-matrix.png">Figure 4 — Cache Coverage Matrix</a></li>
+      <li><a href="figures/figure-05-six-year-gap-timeline.png">Figure 5 — Six-Year Gap Timeline</a></li>
+    </ul>
+    <p class="desc">Publication-quality PNG figures referenced in the paper</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">🎬</span> Video</h2>
+    <ul>
+      <li><a href="https://youtu.be/4MXjfBAxc9I">YouTube — Full Presentation</a></li>
+      <li><a href="videos/README.md">videos/README.md</a> — Video descriptions and source file notes</li>
+    </ul>
+    <p class="desc">Side-by-side bypass vs. control comparison, attack walkthrough, and normal behavior demonstration</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">📋</span> Metadata</h2>
+    <ul>
+      <li><a href="LICENSE">LICENSE</a> — Creative Commons Attribution 4.0 International</li>
+      <li><a href="CITATION.bib">CITATION.bib</a> — BibTeX citation entry</li>
+    </ul>
+    <p class="desc">License and citation information for researchers</p>
+  </div>
+
+</div>
+
+</body>
+</html>

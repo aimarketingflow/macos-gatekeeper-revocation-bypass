@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>macOS Gatekeeper Revocation Bypass via Network-Layer Attacks</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+      background: #fff;
+    }
+    h1 { color: #111; border-bottom: 3px solid #2c3e50; padding-bottom: 0.3em; }
+    h2 { color: #2c3e50; margin-top: 2em; }
+    h3 { color: #34495e; margin-top: 1.5em; }
+    .meta { color: #666; font-size: 0.95em; margin-bottom: 2em; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .tag-method { background: #e8f4f8; color: #1a5276; }
+    .tag-finding { background: #fdebd0; color: #9c640c; }
+    .tag-todo { background: #fadbd8; color: #c0392b; }
+    .tag-done { background: #d5f5e3; color: #1e8449; }
+    .section { margin-bottom: 2em; }
+    .note {
+      background: #f8f9f9;
+      border-left: 4px solid #2c3e50;
+      padding: 12px 16px;
+      margin: 1em 0;
+      color: #333;
+    }
+    ul, ol { padding-left: 1.5em; }
+    li { margin-bottom: 0.5em; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.9em; }
+    th { background: #2c3e50; color: #fff; padding: 8px 10px; text-align: left; }
+    td { padding: 8px 10px; border: 1px solid #ddd; vertical-align: top; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    code { background: #eef; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; color: #333; }
+    .file-ref { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.82em; color: #1a5276; word-break: break-all; }
+    blockquote {
+      border-left: 4px solid #bdc3c7;
+      padding-left: 1em;
+      margin: 1em 0;
+      color: #555;
+      font-style: italic;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.85em;
+    }
+    pre code { background: transparent; padding: 0; }
+    a { color: #1a5276; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .figure-placeholder {
+      background: #f0f4f8;
+      border: 2px dashed #7b8a96;
+      border-radius: 8px;
+      padding: 24px 20px;
+      margin: 1.5em 0;
+      text-align: center;
+    }
+    .figure-placeholder .fig-label {
+      display: inline-block;
+      background: #2c3e50;
+      color: #fff;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .figure-placeholder .fig-type {
+      font-size: 0.82em;
+      color: #7f8c8d;
+      margin-bottom: 8px;
+    }
+    .figure-placeholder .fig-brief {
+      text-align: left;
+      font-size: 0.85em;
+      color: #555;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 12px;
+    }
+    .figure-placeholder .fig-brief strong { color: #2c3e50; }
+    .figure-placeholder .fig-caption {
+      font-size: 0.88em;
+      color: #555;
+      font-style: italic;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .figure-placeholder .fig-alt {
+      font-size: 0.78em;
+      color: #999;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>macOS Gatekeeper Revocation Bypass via Network-Layer Attacks</h1>
+<p class="meta">
+  Public release &bull; August 2026 &bull; Apple Security Bounty ticket OE1107167498810 &bull; Author: Flow Girl &bull;
+  <span class="tag tag-finding">Security Bypass</span>
+  <span class="tag tag-method">Network-Layer Attack</span>
+  <span class="tag tag-done">CVE Precedent Complete</span>
+</p>
+
+<div class="note">
+  <strong>About this paper:</strong> This paper documents the offensive-research finding, disclosure timeline, and vendor response for a macOS Gatekeeper certificate-revocation bypass. It is sanitized for public release — no exploit code, weaponized tooling, or private identifiers are included.
+</div>
+
+<nav style="background:#f0f4f8; border:1px solid #d5dbdb; border-radius:8px; padding:16px 20px; margin:1.5em 0;">
+<strong style="font-size:1.05em;">Contents</strong>
+<ol style="margin:0.5em 0 0 0; padding-left:1.4em; columns:2; column-gap:2em;">
+<li><a href="#abstract">Abstract</a></li>
+<li><a href="#section-1">§1. Discovery — Firewall-Blocking Methodology</a></li>
+<li><a href="#section-2">§2. NTP Attack Vector — ARP MITM and Clock Manipulation</a></li>
+<li><a href="#section-3">§3. DNS Poisoning Vector — OCSP and Notarization Blindness</a></li>
+<li><a href="#section-4">§4. Gatekeeper Bypass Proof — syspolicyd Fail-Open</a></li>
+<li><a href="#section-5">§5. CRLite Disabled — The Missing Offline Defense</a></li>
+<li><a href="#section-6">§6. Negative Controls</a></li>
+<li><a href="#section-7">§7. Attack Simplification — WiFi-Only Bypass</a></li>
+<li><a href="#section-8">§8. Disclosure Timeline</a></li>
+<li><a href="#section-9">§9. Publication Rights and Legal Context</a></li>
+<li><a href="#section-10">§10. Post-Submission Update — Apple's OCSP Responder Fix (July 22, 2026)</a></li>
+<li><a href="#section-11">§11. July 24 Retest — Fix Confirmed, Architecture Unchanged</a></li>
+<li><a href="#section-12">§12. Apple's "Intended Behavior" Admission (July 28, 2026)</a></li>
+<li><a href="#section-13">§13. CVE Precedent Research — Industry Comparison</a></li>
+<li><a href="#section-14">§14. CVE Filing Strategy and MITRE CNA-LR Path</a></li>
+<li><a href="#section-15">§15. Apple's 2020 Promise — "Strong Protections Against Server Failure"</a></li>
+</ol>
+</nav>
+
+<div class="section">
+<h2 id="abstract">Abstract</h2>
+<p>This paper documents a vulnerability in macOS Tahoe's certificate revocation enforcement architecture that allows an attacker on the same network to bypass Gatekeeper's "Malware Blocked" protection for applications signed with revoked Developer ID certificates. The vulnerability was discovered through firewall-based constraint analysis — a methodology that uses local firewall blocking to simulate network-layer attacks on macOS security daemons. We demonstrate three attack vectors of decreasing complexity: Thunderbolt + NTP MITM (~105 minutes), Thunderbolt + DNS poisoning (~5 minutes), and WiFi-only DNS poisoning (~5 minutes), all producing the same result — <code>syspolicyd</code>'s rule 11 fail-open policy engages when OCSP is unreachable, allowing revoked-certificate applications to launch with only a bypassable "unidentified developer" prompt instead of the non-bypassable "Malware Blocked" dialog. The root cause is a triple failure: CRLite — Apple's offline bloom filter-based revocation system — is present in the <code>valid.sqlite3</code> schema but disabled via feature flags (<code>UseCRLite is disabled</code>); <code>valid.sqlite3</code> contains zero Developer ID certificate serials; and the fallback policy (rule 11) explicitly allows execution when revocation status cannot be determined. CRLite is the obvious solution to the fail-open problem — it provides offline revocation checking that does not depend on DNS-defeatable OCSP — yet Apple built it, shipped the schema, and then disabled it. Apple deployed a cert-specific OCSP responder fix on July 22, 2026 — eight days after receiving the researcher's rebuttal — but the architectural fail-open policy remains unchanged. Any revoked Developer ID certificate not yet covered by the responder update remains exploitable. The disclosure timeline documents 13 Apple Security Bounty tickets filed over seven weeks, all closed without acknowledgment as vulnerabilities. Apple's central objection — that the user "affirmatively overrides a Gatekeeper warning" — is contradicted by evidence that the attack removes the non-bypassable dialog entirely, replacing it with a standard bypassable prompt that contains no revocation information. Publication rights analysis confirms that Apple's bounty T&amp;C create a reward incentive for non-disclosure, not a legal prohibition, and that publication after vendor denial is supported by industry-standard coordinated disclosure frameworks and multiple documented precedents.</p>
+</div>
+
+<div class="section">
+<h2 id="section-1">§1. Discovery — Firewall-Blocking Methodology</h2>
+<h3 id="11-research-approach">1.1 Research Approach</h3>
+<p>The vulnerability described in this paper was discovered through a methodology we term <strong>firewall-based constraint analysis</strong>: using third-party network firewalls to voluntarily block system daemons' network access, then observing how macOS security subsystems behave when their telemetry channels are severed. The logic is straightforward — if blocking a daemon's network traffic via a local firewall reveals a security degradation, then an attacker performing the same traffic blocking at the network layer (via ARP MITM, DNS poisoning, or NTP interception) achieves the same result without requiring any software installation on the victim machine.</p>
+<p>This methodology was applied using LuLu, a free and open-source macOS firewall by Objective-See, which allows per-process network traffic control. By systematically blocking outbound traffic from <code>timed</code> (the macOS time synchronization daemon), <code>trustd</code> (the certificate validation daemon), and other security-critical processes, we observed behaviors that would normally be masked by the daemons' ability to self-heal through network communication.</p>
+<h3 id="12-initial-observation-timed-wrongpredictstate">1.2 Initial Observation: <code>timed</code> WrongPredictState</h3>
+<p>On May 31, 2026, a sysdiagnose capture from Mac A (macOS Tahoe, Apple Silicon) revealed 1,583 lines of <code>timed</code> log output showing repeated <code>STF,WrongPredictState</code> entries during a period when LuLu was blocking <code>timed</code>'s outbound NTP traffic.</p>
+<p><strong>Observed:</strong> <code>STF,WrongPredictState,Current,rtc,22244087.289,utc,801816309.914...</code> (timed.txt, line 1151) — five occurrences at lines 1151, 1160, 1277, 1409, and 1530.</p>
+<p><strong>Observed:</strong> May 30 log entries showing "We are already waiting on the network" — indicating <code>timed</code> was starved of NTP access and could not self-correct.</p>
+<blockquote>
+<p>Source: Research evidence E17 — sanitized <code>timed.txt</code> from sysdiagnose_2026_05_31_16_37_14</p>
+</blockquote>
+<p><strong>Interpretation and Limits:</strong> The <code>WrongPredictState</code> entries indicate <code>timed</code> entered an error state when denied NTP access. The critical observation is that this state <strong>did not self-heal</strong> after the firewall block was removed — the daemon remained in a degraded state for approximately eight days. This persistence is the foundational observation for the entire attack chain: network-layer traffic manipulation produces lasting security degradation that survives reboots and network restoration.</p>
+<h3 id="13-lulu-timeline-and-causal-link">1.3 LuLu Timeline and Causal Link</h3>
+<p><strong>Observed:</strong> A timeline reconstruction (Research evidence E16) documents LuLu's on/off windows across approximately eight days. LuLu was disabled during active attack testing and enabled during idle periods. The ~8 days of blocked recovery for <code>timed</code> and <code>trustd</code> establishes that the firewall block, not the attack itself, was the primary cause of the persistent degraded state.</p>
+<blockquote>
+<p>Source: Research evidence E16 — "Total idle time where recovery was blocked: ~8 days"</p>
+</blockquote>
+<p><strong>Observed:</strong> The forensic analyzer script (Research evidence E15) includes LuLu block/deny/drop event counting and LuLu-vs-error correlation per process, providing the methodological basis for identifying the causal link between firewall blocking and daemon degradation.</p>
+<h3 id="14-from-firewall-to-network-attack">1.4 From Firewall to Network Attack</h3>
+<p>The discovery methodology's key insight: if a local firewall blocking <code>timed</code>'s NTP traffic causes persistent <code>WrongPredictState</code>, then an attacker who intercepts or blocks NTP traffic at the network layer achieves the same result. The attacker does not need to install software, modify system files, or have any access to the victim machine — only network position.</p>
+<p>This insight motivated the subsequent attack-chain development: ARP MITM for network positioning, NTP interception for clock manipulation, and DNS poisoning for OCSP/notarization blindness. Each layer replicates a firewall block at the network level.</p>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-2">§2. NTP Attack Vector — ARP MITM and Clock Manipulation</h2>
+<h3 id="21-attack-architecture">2.1 Attack Architecture</h3>
+<p>The first demonstrated attack vector uses ARP spoofing to position the attacker as the default gateway for the victim machine, then intercepts NTP responses to manipulate the victim's system clock. This was demonstrated across two campaigns using Thunderbolt bridge and WiFi vectors.</p>
+<p><strong>Observed:</strong> On June 4, 2026, an ARP MITM attack against Mac B produced a <code>settimeofday()</code> call with <code>adjust,90.001640081,success,1</code> — proving that <code>timed</code> accepted a spoofed NTP offset of +90 seconds per poll.</p>
+<blockquote>
+<p>Source: Research evidence E01 — <code>victim_timed_log.txt</code>, line 728</p>
+</blockquote>
+<p><strong>Observed:</strong> Pre-attack baseline (Research evidence E13) confirmed the clock was stable before the attack, establishing the before/after comparison.</p>
+<h3 id="22-clock-drift-accumulation">2.2 Clock Drift Accumulation</h3>
+<p>The attack accumulates clock drift at approximately +90 seconds per NTP poll. With default <code>timed</code> polling intervals, a +10 minute clock shift is achievable in approximately 105 minutes of sustained attack.</p>
+<p><strong>Observed:</strong> June 10 research milestone — Thunderbolt Bridge attack achieved +179s drift with 553 NTP packets intercepted, and OCSP failure was confirmed during this window.</p>
+<p><strong>Observed:</strong> June 12 research milestone — WiFi ARP MITM achieved +89.85s clock shift, with persistence through reboot.</p>
+<p><strong>Observed:</strong> June 16 research milestone — NTP starvation confirmed over 3 hours 9 minutes, with 0 of 33 NTP packets reaching the victim, producing +25s persistent offset.</p>
+<h3 id="23-security-impact-of-clock-manipulation">2.3 Security Impact of Clock Manipulation</h3>
+<p><strong>Observed:</strong> A +10 minute clock shift causes <code>trustd</code> OCSP revocation checking to fail with error -1009, and <code>syspolicyd</code> (Gatekeeper) falls back to allow with "rule 11 applies - allow=1".</p>
+<blockquote>
+<p>Source: Research evidence E03, E04 — Gatekeeper degradation report and raw syspolicyd log</p>
+</blockquote>
+<p><strong>Interpretation and Limits:</strong> The clock shift itself is not the final vulnerability — it is the mechanism that triggers the security degradation. The actual bypass occurs when <code>syspolicyd</code>'s fail-open policy engages upon OCSP failure. The clock shift is one of three demonstrated vectors for achieving this condition; DNS poisoning (§3) achieves the same result faster and without requiring clock manipulation.</p>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-3">§3. DNS Poisoning Vector — OCSP and Notarization Blindness</h2>
+<h3 id="31-attack-architecture">3.1 Attack Architecture</h3>
+<p>The second attack vector bypasses the need for clock manipulation entirely. Instead of intercepting NTP traffic, the attacker poisons DNS responses for Apple's security-critical domains, causing the victim's <code>trustd</code> to believe OCSP servers are unreachable. This achieves "full security blindness" — the victim machine cannot perform certificate revocation checks, notarization ticket verification, or XProtect updates.</p>
+<h3 id="32-three-channel-blindness">3.2 Three-Channel Blindness</h3>
+<p><strong>Observed:</strong> On July 7, 2026, Campaign 2.0 achieved "Full 3-Channel Blindness" in approximately 6 minutes. The three channels are: (1) OCSP revocation checking, (2) notarization ticket verification, and (3) XProtect malware signature updates.</p>
+<blockquote>
+<p>Source: Research evidence E07 — Campaign 2.0 test log, line 48: "Full 3-Channel Blindness Achieved in ~6 Minutes"</p>
+</blockquote>
+<p><strong>Observed:</strong> The attack poisoned 46 Apple security domains, redirecting them to a sinkhole address. macOS attempted CDN bypass paths when primary domains were poisoned, requiring additional domains to be included in the poison set.</p>
+<blockquote>
+<p>Source: Research evidence E08 — Campaign 2.0 findings report</p>
+</blockquote>
+<p><strong>Interpretation and Limits:</strong> The 6-minute timeframe represents the time from attack initiation to confirmed blindness. The actual OCSP cache expiration may vary by machine and prior state. The 46-domain count is not reproduced here per sanitization plan — domains are referenced generically as "Apple OCSP and notarization domains."</p>
+
+<div class="figure-placeholder">
+  <span class="fig-label">FIGURE 1 — TODO: CREATE IMAGE</span>
+  <div class="fig-type">Diagram type: Flow diagram (left-to-right, 3 parallel channels)</div>
+  <div class="fig-brief">
+    <strong>Purpose:</strong> Visualize the three-channel blindness attack flow and how DNS poisoning severs all three Apple security channels simultaneously.<br>
+    <strong>Section:</strong> §3.2 Three-Channel Blindness<br>
+    <strong>Audience takeaway:</strong> A single DNS poisoning action blinds three independent security mechanisms — this is not just an OCSP problem.<br>
+    <strong>Nodes (left to right):</strong><br>
+    &nbsp;&nbsp;1. Attacker on shared network (ARP spoof + DNS poison)<br>
+    &nbsp;&nbsp;2. Three parallel arrows to three channels:<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;a. OCSP revocation checking → ocsp.apple.com → 127.0.0.1 (BLOCKED)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;b. Notarization ticket verification → notarization API → 127.0.0.1 (BLOCKED)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;c. XProtect signature updates → mesu.apple.com → 127.0.0.1 (BLOCKED)<br>
+    &nbsp;&nbsp;3. All three channels converge to: macOS security state = BLIND<br>
+    &nbsp;&nbsp;4. Result: Gatekeeper rule 11 → allow=1<br>
+    <strong>Approved labels:</strong> "Attacker", "Shared WiFi", "DNS Poison", "OCSP", "Notarization", "XProtect", "Blocked", "Fail-Open", "Rule 11: allow=1"<br>
+    <strong>Prohibited labels:</strong> Real IP addresses, actual domain list, tool names, machine identifiers<br>
+    <strong>Data bindings:</strong> Research evidence E07 (6-minute timing), E08 (46 domains), E10 (44 OCSP queries blocked)<br>
+    <strong>Style:</strong> Clean flat design, red/dark-red for blocked channels, green for normal path (shown faded for contrast), monospace font for technical labels
+  </div>
+  <div class="fig-caption">Figure 1: Three-channel blindness attack flow. A single DNS poisoning action severs OCSP revocation, notarization verification, and XProtect updates simultaneously, producing Gatekeeper fail-open within ~6 minutes.</div>
+  <div class="fig-alt">Alt text: Flow diagram showing attacker on shared WiFi poisoning DNS to block three Apple security channels (OCSP, notarization, XProtect), resulting in Gatekeeper rule 11 fail-open with allow=1.</div>
+</div>
+
+<h3 id="33-ocsp-query-blocking">3.3 OCSP Query Blocking</h3>
+<p><strong>Observed:</strong> During the July 15 WiFi-only attack, 44 OCSP queries were blocked from reaching Apple's servers.</p>
+<blockquote>
+<p>Source: Research evidence E10 — Apple ticket update, line 28</p>
+</blockquote>
+<p><strong>Observed:</strong> <code>trustd</code> logged null OCSP responses during the attack window, confirming that revocation status could not be obtained.</p>
+<h3 id="34-research-tool-role">3.4 Research Tool Role</h3>
+<p>A custom network testing tool was used to automate the DNS poisoning setup. The tool executes four sequential steps: (1) start DNS poison server, (2) start ARP spoof, (3) redirect victim DNS via pf, (4) verify poison is active. The tool creates the network conditions under which Gatekeeper's fail-open behavior can be observed — it does not modify any files on the victim machine.</p>
+<blockquote>
+<p>Source: Verification analysis §1.2 — behavioral steps table</p>
+</blockquote>
+<p>No source code, build instructions, binary paths, or domain list contents are included in this paper.</p>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-4">§4. Gatekeeper Bypass Proof — syspolicyd Fail-Open</h2>
+<h3 id="41-the-critical-transition">4.1 The Critical Transition</h3>
+<p>The core vulnerability is <code>syspolicyd</code>'s fail-open policy when OCSP is unreachable. When <code>trustd</code> cannot obtain revocation status for a certificate, <code>syspolicyd</code> applies rule 11, which explicitly allows execution.</p>
+<p><strong>Observed:</strong> 366 lines of <code>syspolicyd</code> log from July 7, 2026 (Campaign 1.5) show the transition from rule 3 (normal enforcement) to rule 11 (fail-open) at 18:04:59, coinciding with OCSP check failures.</p>
+<blockquote>
+<p>Source: Research evidence E06 — BYPASS_PROOF.txt, line 29: <code>syspolicyd[476:2c93a] [com.apple.securityd:gk] rule 11 applies - allow=1</code></p>
+</blockquote>
+<h3 id="42-revoked-certificate-app-launch">4.2 Revoked Certificate App Launch</h3>
+<p>The bypass was verified using a macOS application signed with a revoked Developer ID certificate. The sample — ChatGPT Desktop for macOS v1.2026.049, signed by OpenAI, L.L.C. (Developer ID team <code>2DC432GLL2</code>) — had its certificate revoked on May 8, 2026, following a publicly reported supply chain incident.</p>
+<blockquote>
+<p>Source: Verification analysis §2.1 — sample properties table</p>
+</blockquote>
+<p>This sample is ideal for verification because its revocation is <strong>exclusively detectable via online OCSP</strong> — it is not in the local <code>gkopaque.db</code> whitelist, not detectable via notarization ticket cache, and not flagged by XProtect. The only variable between the app being blocked and being allowed is DNS reachability.</p>
+<h3 id="43-positive-control-bypass-confirmed-july-9-2026">4.3 Positive Control: Bypass Confirmed (July 9, 2026)</h3>
+<p><strong>Phase 1 — Pre-attack baseline (OCSP reachable):</strong></p>
+<p><strong>Observed:</strong> <code>spctl -a -vv</code> returned <code>CSSMERR_TP_CERT_REVOKED</code> — revocation correctly detected, app cannot be opened.</p>
+<p><strong>Phase 2 — During attack (DNS poisoning active):</strong></p>
+<p><strong>Observed:</strong> <code>spctl -a -vv</code> returned <code>REJECTED: source=Unnotarized Developer ID</code> — the rejection reason <strong>changed</strong> from a hard block (non-bypassable "Malware Blocked" dialog) to a soft block (bypassable "unidentified developer" prompt).</p>
+<blockquote>
+<p>Source: Verification analysis §2.3 — "The DNS poison prevented macOS from discovering the revocation, downgrading the security response."</p>
+</blockquote>
+<p><strong>Phase 3 — During attack (Finder launch):</strong></p>
+<p><strong>Observed:</strong> User right-clicked the app → Open. Application launched successfully. ChatGPT UI rendered, connected to OpenAI servers, and registered as a Login Item for background persistence across reboots.</p>
+<blockquote>
+<p>Source: Verification analysis §2.3 — "A macOS application signed with a revoked Developer ID certificate was successfully launched via Finder during active DNS poisoning."</p>
+</blockquote>
+<p><strong>Observed:</strong> <code>syspolicyd</code> log shows <code>evaluateScanResult: 2</code> with flags <code>0, 0, 1, 0, 0, 0, 0</code> — no malware detected (0), no revocation detected (0), allowed to proceed (1), no notarization ticket found (0).</p>
+<blockquote>
+<p>Source: Verification analysis §2.3 — FULL_BYPASS_REPORT.md, lines 221-223</p>
+</blockquote>
+<h3 id="44-the-security-boundary-crossed">4.4 The Security Boundary Crossed</h3>
+<p><strong>Interpretation and Limits:</strong> The attack changes the Gatekeeper dialog from "Malware Blocked and Moved to Trash" (non-bypassable — no Open button exists) to "Unidentified developer" (bypassable — right-click → Open). This is not the user "overriding a warning" — the attack removes the security-relevant information entirely. The user never sees revocation information. The same dialog appears for any non-App-Store app, giving the user no indication that the certificate has been revoked.</p>
+<p>The control matrix from Verification analysis §2.6 demonstrates that the <strong>only variable</strong> is DNS reachability on Tahoe:</p>
+<table>
+<thead>
+<tr><th>Condition</th><th>OCSP</th><th>Gatekeeper Decision</th><th>Bypassable?</th></tr>
+</thead>
+<tbody>
+<tr><td>Tahoe + OCSP reachable</td><td>✓</td><td>CSSMERR_TP_CERT_REVOKED (hard block)</td><td>NO</td></tr>
+<tr><td>Tahoe + OCSP poisoned</td><td>✗</td><td>Unnotarized Developer ID (soft block)</td><td><strong>YES</strong></td></tr>
+<tr><td>Tahoe 26.5.2 + OCSP reachable</td><td>✓</td><td>"Malware Blocked and Moved to Trash"</td><td>NO</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<p>Source: Verification analysis §2.6 — control matrix table</p>
+</blockquote>
+
+<div class="figure-placeholder">
+  <span class="fig-label">FIGURE 2 — TODO: CREATE IMAGE</span>
+  <div class="fig-type">Diagram type: Side-by-side screenshot comparison (2 panels)</div>
+  <div class="fig-brief">
+    <strong>Purpose:</strong> Show the actual security boundary difference — the non-bypassable "Malware Blocked" dialog vs. the bypassable standard prompt that appears when revocation is skipped.<br>
+    <strong>Section:</strong> §4.4 The Security Boundary Crossed<br>
+    <strong>Audience takeaway:</strong> The attack doesn't add an "Open" button to a warning — it removes the warning entirely. The user sees a normal prompt with no revocation information.<br>
+    <strong>Panel A (left):</strong> macOS Gatekeeper dialog — "ChatGPT.app was blocked because it contains malware" / "Move to Trash" button only. Red shield icon. Label: "OCSP Reachable — Revocation Enforced"<br>
+    <strong>Panel B (right):</strong> macOS Gatekeeper dialog — "ChatGPT.app cannot be opened because the developer cannot be verified" / "Show in Finder" + "Done" buttons. Yellow caution icon. Label: "OCSP Poisoned — Revocation Skipped"<br>
+    <strong>Annotation:</strong> Arrow between panels labeled "DNS Poison (3 seconds)". Below Panel B: small text "Right-click → Open bypasses this dialog"<br>
+    <strong>Approved labels:</strong> "Malware Blocked", "Move to Trash", "Cannot be opened", "Show in Finder", "OCSP Reachable", "OCSP Poisoned", "Revocation Enforced", "Revocation Skipped"<br>
+    <strong>Prohibited labels:</strong> Real certificate serial numbers, developer names, actual app icons (use generic placeholder)<br>
+    <strong>Data bindings:</strong> Verification analysis §2.6 control matrix, Research evidence E03/E04 (syspolicyd logs showing both states)<br>
+    <strong>Style:</strong> Reproduce macOS dialog aesthetic (rounded corners, system font, appropriate icons). Red border on Panel A, yellow border on Panel B. Equal size panels.
+  </div>
+  <div class="fig-caption">Figure 2: The security boundary crossed. Left: Gatekeeper hard-blocks a revoked-certificate app when OCSP is reachable. Right: The same app produces only a bypassable prompt when OCSP is poisoned — no revocation information is shown to the user.</div>
+  <div class="fig-alt">Alt text: Side-by-side comparison of two macOS Gatekeeper dialogs. Left panel shows a non-bypassable malware block with Move to Trash button when OCSP is reachable. Right panel shows a bypassable unidentified developer prompt when OCSP is poisoned, with no indication the certificate is revoked.</div>
+</div>
+
+<hr>
+</div>
+<div class="section">
+<h2 id="section-5">§5. CRLite Disabled — The Missing Offline Defense</h2>
+
+<h3 id="51-crlite-feature-flag-disabled">5.1 CRLite Feature Flag Disabled</h3>
+<p>Direct <code>trustd</code> log capture on macOS Tahoe confirms CRLite is explicitly disabled via feature flags:</p>
+<pre><code>trustd: UseCRLite is disabled (via feature flags)
+trustd: skipping further reads. no CA Revocation Additions found: (null)</code></pre>
+<p>In Apple's open-source <code>Security-61901.120.67</code> release, the enforcement function <code>_SecTrustUseCRLiteEnforcement()</code> returns <code>false</code>. CRLite tables exist in the <code>valid.sqlite3</code> schema but are never consulted because the feature flag is off. The infrastructure was built, shipped, and then turned off.</p>
+<blockquote>
+<p>Source: Campaign 5.0 trustd log capture, July 24, 2026; Apple open-source Security-61901.120.67</p>
+</blockquote>
+
+<h3 id="52-crlite-tables-present-but-empty">5.2 CRLite Tables Present But Empty</h3>
+<p>Direct database queries against <code>valid.sqlite3</code> on two Tahoe machines confirm the CRLite tables exist but contain zero rows:</p>
+<table>
+<thead>
+<tr><th>Table</th><th>Mac A (Tahoe/M1)</th><th>Mac B (Tahoe/M3)</th></tr>
+</thead>
+<tbody>
+<tr><td><code>crlitefilters</code></td><td>0 rows</td><td>0 rows</td></tr>
+<tr><td><code>crlitefiltercoverage</code></td><td>0 rows</td><td>0 rows</td></tr>
+</tbody>
+</table>
+<p>Even if the feature flag were enabled, there is no data for CRLite to consult. Apple built the schema, added the tables to <code>db_format=8</code>, and never populated them.</p>
+<blockquote>
+<p>Source: Direct <code>sqlite3</code> queries against <code>valid_maca.sqlite3</code> and <code>valid_macb.sqlite3</code>, July 24, 2026</p>
+</blockquote>
+
+<h3 id="53-no-developer-id-serials-in-validsqlite3">5.3 No Developer ID Serials in valid.sqlite3</h3>
+<p>The <code>valid.sqlite3</code> serials table contains ~72,000 revoked serials, but none of them are Apple Developer ID certificates. A direct query for the test certificate's serial returns zero matches:</p>
+<pre><code>SELECT COUNT(*) FROM serials WHERE serial = X'68A68AF8A434EE4FDE46F8680B23BDCC';
+→ 0</code></pre>
+<p><code>valid.sqlite3</code> covers web PKI certificate authorities only — not Apple's own Developer ID code signing infrastructure. This means the local serial database provides zero coverage for the exact class of certificates Gatekeeper is responsible for validating.</p>
+<blockquote>
+<p>Source: Direct <code>sqlite3</code> query, confirmed on both Tahoe machines, July 24, 2026</p>
+</blockquote>
+
+<h3 id="54-the-triple-failure">5.4 The Triple Failure</h3>
+<p>When OCSP is unreachable (via DNS poisoning), three independent layers of revocation defense all fail simultaneously on macOS Tahoe:</p>
+<table>
+<thead>
+<tr><th>Layer</th><th>Status</th><th>Coverage</th></tr>
+</thead>
+<tbody>
+<tr><td>CRLite (offline bloom filter)</td><td><strong>DISABLED</strong> via feature flags</td><td>Zero — never consulted</td></tr>
+<tr><td>valid.sqlite3 (local serials)</td><td>Present but no Developer ID serials</td><td>Zero — wrong scope</td></tr>
+<tr><td>syspolicyd rule 11 (fallback policy)</td><td>Fails open: <code>allow=1</code></td><td>Actively harmful — allows execution</td></tr>
+</tbody>
+</table>
+<p>OCSP was the sole remaining defense — and it is defeatable by a 3-second DNS poisoning window. With CRLite disabled, there is no offline fallback. The entire revocation enforcement for Developer ID certificates depends on a single, network-reachable OCSP request.</p>
+
+<div class="figure-placeholder">
+  <span class="fig-label">FIGURE 3 — TODO: CREATE IMAGE</span>
+  <div class="fig-type">Diagram type: Decision flow (single column, top to bottom)</div>
+  <div class="fig-brief">
+    <strong>Purpose:</strong> Show the triple failure path when OCSP is unreachable on macOS Tahoe, making it clear that no offline defense exists.<br>
+    <strong>Section:</strong> §5.4 The Triple Failure<br>
+    <strong>Audience takeaway:</strong> Three layers of defense all fail. CRLite is disabled, valid.sqlite3 has no Developer ID serials, and the fallback policy allows execution. There is no offline safety net.<br>
+    <strong>Tree structure (top to bottom):</strong><br>
+    &nbsp;&nbsp;Root node: "OCSP Unreachable (DNS Poisoned)"<br>
+    &nbsp;&nbsp;→ CRLite check → <strong>DISABLED</strong> (feature flag off) → NO COVERAGE<br>
+    &nbsp;&nbsp;→ valid.sqlite3 → 0 Developer ID serials → NO COVERAGE<br>
+    &nbsp;&nbsp;→ syspolicyd rule 11 → allow=1 → <strong>APP LAUNCHES (FAIL OPEN)</strong><br>
+    <strong>Approved labels:</strong> "OCSP Unreachable", "CRLite: DISABLED", "valid.sqlite3: 0 Dev ID serials", "Rule 11: allow=1", "Fail Open", "No Offline Defense"<br>
+    <strong>Prohibited labels:</strong> Machine identifiers, real serial numbers, internal Apple team names<br>
+    <strong>Data bindings:</strong> §5.1 (CRLite disabled log), §5.2 (empty tables query), §5.3 (serial absent query), §5.4 (triple failure table)<br>
+    <strong>Style:</strong> Single-column flowchart. Red path throughout. Monospace for technical identifiers. "DISABLED" in bold red.
+  </div>
+  <div class="fig-caption">Figure 3: The triple failure path on macOS Tahoe when OCSP is unreachable. CRLite is disabled via feature flags, valid.sqlite3 contains zero Developer ID serials, and syspolicyd rule 11 fails open. No offline defense exists.</div>
+  <div class="fig-alt">Alt text: Single-column decision flowchart showing macOS Tahoe revocation path when OCSP is unreachable. CRLite is disabled, valid.sqlite3 has no Developer ID serials, and rule 11 allows execution. No offline defense exists.</div>
+</div>
+
+<h3 id="55-crlite-is-the-obvious-solution">5.5 CRLite Is the Obvious Solution</h3>
+<p>CRLite is the obvious solution to the fail-open problem. It provides offline revocation checking using bloom filters — no network access required. An attacker poisoning DNS cannot defeat a local bloom filter lookup. Mozilla deployed CRLite in Firefox in 2021; Apple built the same architecture into <code>trustd</code> but never enabled it.</p>
+<p>Apple's 2020 commitment to "strong protections against server failure" (§15) was supposed to be fulfilled by CRLite. Ars Technica noted in their 2020 coverage: "A revocation method known as CRLite may ultimately provide a solution to this failing." Six years later, CRLite exists in Apple's <code>trustd</code> source code but is disabled via feature flag. The solution identified in 2020 was implemented but never activated.</p>
+
+<h3 id="56-apples-july-28-admission-confirms-the-gap">5.6 Apple's July 28 Admission Confirms the Gap</h3>
+<p>Apple's July 28, 2026 response confirms the fail-open is intentional and that their sole mitigation is a cached OCSP response — not an offline database:</p>
+<blockquote>
+<p>"When a revocation check cannot reach the responder and the machine holds no previously cached revoked response for that certificate, the evaluation soft-fails."</p>
+<p>"A cached revoked response is pinned permanently."</p>
+</blockquote>
+<p>This means Apple's entire revocation defense for Developer ID certificates depends on: (1) the victim having previously contacted the real OCSP server for that specific certificate, and (2) the cached response surviving on disk. For any previously-unseen revoked certificate, a fresh Mac, or a machine where the attacker controls DNS from first contact, there is zero protection. CRLite would close this gap entirely — but it is disabled.</p>
+<blockquote>
+<p>Source: Apple Security Bounty ticket OE1107167498810, response dated 7/28/26</p>
+</blockquote>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-6">§6. Negative Controls</h2>
+<h3 id="61-unnotarized-app-rejection-july-7-2026">6.1 Unnotarized App Rejection (July 7, 2026)</h3>
+<p><strong>Observed:</strong> An unnotarized test app signed with the researcher's own Developer ID (but not notarized) was REJECTED on both Tahoe machines. <code>spctl -a -vv</code> returned "rejected, source=Unnotarized Developer ID" on both Mac A and Mac B.</p>
+<blockquote>
+<p>Source: Research evidence E11 — UnnotarizedTest.app</p>
+</blockquote>
+<p><strong>Interpretation and Limits:</strong> This narrows the bypass scope to revoked-but-previously-notarized certificates. Rule 13 (deny unnotarized) still functions during the attack. The bypass only affects the OCSP revocation check path — meaning a notarized app signed with a stolen or revoked Developer ID certificate would pass because <code>trustd</code> cannot check revocation status.</p>
+<h3 id="62-post-fix-control-july-14-2026-macos-2652">6.2 Post-Fix Control (July 14, 2026, macOS 26.5.2)</h3>
+<p><strong>Observed:</strong> After updating to macOS 26.5.2, the same ChatGPT DMG with OCSP reachable produces "Malware Blocked and Moved to Trash" — no override possible.</p>
+<blockquote>
+<p>Source: Verification analysis §2.5 — "Control test (July 14, macOS 26.5.2): Same DMG, OCSP reachable: 'Malware Blocked and Moved to Trash' — no override possible."</p>
+</blockquote>
+<p><strong>Interpretation and Limits:</strong> This control confirms that the bypass is specific to the pre-fix Tahoe versions. However, the fix version's behavior when OCSP is poisoned has not been independently tested by the researcher. [UNVERIFIED — whether 26.5.2 populates CRLite tables or changes the fail-open policy has not been independently tested.]</p>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-7">§7. Attack Simplification — WiFi-Only Bypass</h2>
+<h3 id="71-three-demonstrated-vectors">7.1 Three Demonstrated Vectors</h3>
+<p>The attack chain was progressively simplified from requiring physical access (Thunderbolt) to requiring only WiFi proximity:</p>
+<table>
+<thead>
+<tr><th>Vector</th><th>Physical Access</th><th>Time to Bypass</th><th>Date</th></tr>
+</thead>
+<tbody>
+<tr><td>Thunderbolt + NTP MITM</td><td>Yes (cable)</td><td>~105 minutes</td><td>June 4–23</td></tr>
+<tr><td>Thunderbolt + DNS poison</td><td>Yes (cable)</td><td>~5 minutes</td><td>July 7–14</td></tr>
+<tr><td>WiFi ARP + DNS poison</td><td>No</td><td>~5 minutes</td><td>July 15</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<p>Source: Research evidence attack-chain map — three demonstrated vectors</p>
+</blockquote>
+<h3 id="72-wifi-only-bypass-july-15-2026">7.2 WiFi-Only Bypass (July 15, 2026)</h3>
+<p><strong>Observed:</strong> On July 15, 2026, a WiFi-only attack was demonstrated. No Thunderbolt cable, no NTP manipulation, no physical access to the victim machine. The attacker and victim were on the same WiFi network. Time to exploit: under 5 minutes from attack start to successful bypass.</p>
+<blockquote>
+<p>Source: Research evidence E10 — "Time to exploit: under 5 minutes from attack start to successful bypass" (line 7)</p>
+</blockquote>
+<p><strong>Observed:</strong> 44 OCSP queries were blocked during the attack. The attack used DNS poisoning only — no clock manipulation was required.</p>
+<h3 id="73-real-world-attack-scenario">7.3 Real-World Attack Scenario</h3>
+<p><strong>Interpretation and Limits:</strong> The WiFi-only vector means any attacker on the same network (coffee shop, hotel, airport, corporate WiFi) can execute the attack. The victim requires no software installation, no click-through, and no interaction — the attack is entirely network-level. The persistence of the bypass after attack cessation (observed in earlier campaigns) means the attacker can leave the network before the victim attempts to open any application.</p>
+<p>The attack is particularly effective against sleeping Macs: a laptop with its lid closed but WiFi active (extremely common behavior) can be attacked overnight, allowing all OCSP caches to expire. When the user wakes the machine and opens an app, Gatekeeper's fail-open policy is already engaged.</p>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-8">§8. Disclosure Timeline</h2>
+<h3 id="81-complete-timeline">8.1 Complete Timeline</h3>
+<p>The researcher disclosed this vulnerability to Apple through the Apple Security Bounty program. The timeline below summarizes the key interactions:</p>
+<p><strong>Phase 1: Initial Discovery and First Contact (May 2026)</strong></p>
+<ul>
+<li><strong>May 27:</strong> Researcher submits initial report (NTP starvation, clock drift, cascading failures). Apple responds: "Not a vulnerability." Ticket closed without response.</li>
+<li><strong>May 30:</strong> Researcher submits fresh report with 90-day disclosure notice (deadline: August 28, 2026).</li>
+</ul>
+
+<p><strong>Phase 2: Remote Attack Proof and Escalation (June 2026)</strong></p>
+<ul>
+<li><strong>June 4:</strong> Researcher submits remote ARP MITM + NTP injection proof (+90s clock shift). Ticket <code>OE1107167498810</code> opened.</li>
+<li><strong>June 5:</strong> Researcher submits Ticket 2: Gatekeeper/OCSP bypass via NTP (+10 min shift → rule 11 allow=1).</li>
+<li><strong>June 17–18:</strong> Full attack documentation (HTML report + video evidence) submitted.</li>
+<li><strong>June 22:</strong> Apple responds: "This report was reviewed but it does not outline or demonstrate a security vulnerability."</li>
+<li><strong>June 23–24:</strong> Researcher submits new evidence: 7-minute WiFi attack, full exploitation proof (credential theft in &lt;4 seconds, reboot persistence).</li>
+</ul>
+
+<p><strong>Phase 3: Apple Response and Cascading Damage (June–July 2026)</strong></p>
+<ul>
+<li><strong>June 30:</strong> Apple responds: "The code execution comes from a curl-delivered binary... combined with a non-default VSCode auto-task setting, neither of which is caused by the NTP time shift... The OCSP and syspolicyd errors in the logs track the network disruption from the ARP spoofing rather than the clock offset." Report closed.</li>
+<li><strong>July 3:</strong> Researcher submits counter-rebuttal with new evidence: DetachedSignatures DB destroyed, 819 errors across 20+ processes, network restoration experiment proving non-network cause.</li>
+</ul>
+
+<p><strong>Phase 4: DNS-Only Gatekeeper Bypass (July 2026)</strong></p>
+<ul>
+<li><strong>July 9:</strong> ChatGPT revoked-cert bypass confirmed via Thunderbolt DNS poison.</li>
+<li><strong>July 14:</strong> Apple responds: "Does not demonstrate that a security boundary is crossed without user consent... the user affirmatively overrides [a Gatekeeper warning]."</li>
+<li><strong>July 14:</strong> Researcher submits rebuttal: "Malware Blocked" (non-bypassable) → "Unidentified developer" (bypassable). User is NOT "overriding a warning" — the attack removes the security-relevant information.</li>
+<li><strong>July 15:</strong> WiFi-only DNS poisoning bypass confirmed. No Thunderbolt, no NTP, no physical access. Under 5 minutes.</li>
+</ul>
+
+<blockquote>
+<p>Source: Disclosure timeline §1 — complete disclosure timeline</p>
+</blockquote>
+<h3 id="82-apples-responses-verbatim">8.2 Apple's Responses — Verbatim</h3>
+<p><strong>Response 1 (June 22, 2026):</strong></p>
+<blockquote>
+<p>"This report was reviewed but it does not outline or demonstrate a security vulnerability."</p>
+</blockquote>
+<blockquote>
+<p>Source: Disclosure timeline §2 — Response 1, citing DISCLOSURE_TIMELINE.md, line 31</p>
+</blockquote>
+<p><strong>Response 2 (June 30, 2026):</strong></p>
+<blockquote>
+<p>"Thank you for the additional exploitation evidence. We looked at the full chain and the code execution comes from a curl-delivered binary that never receives a quarantine attribute combined with a non-default VSCode auto-task setting, neither of which is caused by the NTP time shift and neither of which Apple treats as a Gatekeeper bypass. The OCSP and syspolicyd errors in the logs track the network disruption from the ARP spoofing rather than the clock offset, so we don't see a security issue here and are closing the report."</p>
+</blockquote>
+<blockquote>
+<p>Source: Disclosure timeline §2 — Response 2, citing APPLE_RESPONSE_20260630.html, line 63</p>
+</blockquote>
+<p><strong>Response 3 (July 14, 2026):</strong></p>
+<blockquote>
+<p>"The scenario as described requires an attacker to already control the victim's network, and the final step relies on the user explicitly choosing to open the software despite a Gatekeeper warning. Because the software runs only after the user affirmatively overrides that warning, the report does not demonstrate that a security boundary is crossed without user consent."</p>
+</blockquote>
+<blockquote>
+<p>Source: Disclosure timeline §2 — Response 3, citing APPLE_REBUTTAL_DRAFT_20260714.md, line 5</p>
+</blockquote>
+<h3 id="83-rebuttal-summary">8.3 Rebuttal Summary</h3>
+<p><strong>Against Response 2:</strong> The claim that "OCSP errors track network disruption" is contradicted by evidence that databases remained corrupted after network restoration. The claim that "code execution comes from a curl-delivered binary" conflates the delivery mechanism with the vulnerability — the vulnerability is the permanent Gatekeeper corruption with no self-healing, not the specific payload delivery method.</p>
+<p><strong>Against Response 3:</strong> The claim that the user "affirmatively overrides a Gatekeeper warning" is factually incorrect. The attack changes the dialog from "Malware Blocked and Moved to Trash" (non-bypassable — no Open button) to "Unidentified developer" (bypassable — right-click → Open). The user never sees revocation information. The user's "consent" is uninformed — the attack hides the revocation status entirely, presenting the same dialog as any non-App-Store app.</p>
+<blockquote>
+<p>Source: Disclosure timeline §3 — rebuttal points</p>
+</blockquote>
+<h3 id="84-ticket-history">8.4 Ticket History</h3>
+<p><strong>Total: 13 tickets filed, 13 tickets closed, 0 acknowledged as vulnerabilities.</strong></p>
+<blockquote>
+<p>Source: Disclosure timeline §5 — Apple ticket history table</p>
+</blockquote>
+<h3 id="85-disclosure-policy">8.5 Disclosure Policy</h3>
+<p>Per industry norms (Google Project Zero 90-day, CERT/CC 45-day):</p>
+<ul>
+<li>90-day notice sent May 30, 2026 (deadline: August 28, 2026)</li>
+<li>45-day accelerated deadline set June 4, 2026 (deadline: July 19, 2026)</li>
+<li>Apple provided explicit written rejections on June 22, June 30, and July 14</li>
+<li>Vendor rejection constitutes engagement — disclosure may proceed per industry standard</li>
+<li>All evidence provided to vendor before any public release</li>
+</ul>
+<blockquote>
+<p>Source: Disclosure timeline §6 — disclosure policy</p>
+</blockquote>
+<hr>
+</div>
+<div class="section">
+<h2 id="section-9">§9. Publication Rights and Legal Context</h2>
+<h3 id="91-apple-security-bounty-terms">9.1 Apple Security Bounty Terms</h3>
+<p>Apple's published Terms and Conditions contain a single disclosure restriction, tied exclusively to <strong>award eligibility</strong>:</p>
+<blockquote>
+<p>"For a reported security vulnerability affecting any Apple platform to be eligible for an Apple Security Bounty award, you must not disclose it to anyone other than Apple until after Apple has released a software update and published a security advisory for the reported security vulnerability."</p>
+</blockquote>
+<blockquote>
+<p>Source: Publication rights researchQ1 — Apple Security Bounty T&amp;C, accessed 2026-07-23</p>
+</blockquote>
+<p>The consequence of early disclosure is <strong>loss of bounty eligibility</strong>, not a legal injunction, NDA breach, or IP claim. There is no stated embargo period — the restriction is open-ended until Apple ships a fix AND publishes an advisory.</p>
+<h3 id="92-rights-after-denial">9.2 Rights After Denial</h3>
+<p>If Apple closes a report without fixing it or denies the bounty, the T&amp;C condition ("until after Apple has released a software update and published a security advisory") can never be satisfied through Apple's action. This creates an indefinite de facto embargo — but only for <strong>award eligibility</strong>, not as a legal prohibition.</p>
+<p>The researcher's options after denial:</p>
+<ol>
+<li>Publish immediately — forfeit any future eligibility (already denied, so no practical loss)</li>
+<li>Wait for Apple to fix — retain theoretical eligibility (but Apple has already denied)</li>
+<li>Follow industry-standard 90-day CVD — disclose after 90 days from report regardless of fix status</li>
+</ol>
+<p><strong>No NDA, IP assignment, or injunctive clause prevents publication.</strong> The researcher's work product remains their own. The published T&amp;C contain no IP assignment, license grant, copyright transfer, or work-for-hire clause.</p>
+<blockquote>
+<p>Source: Publication rights research Q11 — publication rights analysis</p>
+</blockquote>
+<h3 id="93-documented-precedents">9.3 Documented Precedents</h3>
+<p>Multiple researchers have published vulnerability details after Apple denial or inaction, with no documented legal consequences:</p>
+<ul>
+<li><strong>Jeff Johnson (2019–2020):</strong> Published TCC bypass details after 8–12 months of Apple inaction. No legal action.</li>
+<li><strong>Kaspersky (2023):</strong> Published Operation Triangulation details at 37C3 after bounty denial. No legal action.</li>
+<li><strong>Meysam (2024):</strong> Published iOS kernel CVE POC after bounty denial. Apple subsequently offered $1,000 "for good faith."</li>
+</ul>
+
+<blockquote>
+<p>Source: Publication rights research Q12 — documented cases</p>
+</blockquote>
+<h3 id="94-legal-framework">9.4 Legal Framework</h3>
+<p>Under current DOJ policy (Justice Manual § 9-48.000, revised May 2022):</p>
+<blockquote>
+<p>"The attorney for the government should decline prosecution if available evidence shows the defendant's conduct consisted of, and the defendant intended, good-faith security research."</p>
+</blockquote>
+<p>Apple's own T&amp;C provide a limited safe harbor for reverse engineering conducted during bounty participation. The DMCA § 1201 security research exemption (expanded in 2021 triennial rulemaking) provides additional protection.</p>
+<blockquote>
+<p>Source: Publication rights research Q13–Q14 — legal framework analysis</p>
+</blockquote>
+<p><strong>Interpretation and Limits:</strong> This analysis is research output, not legal advice. Specific state law implications and the question of whether a researcher whose report was denied remains a "participant" under the T&amp;C safe harbor clause require attorney review. [UNVERIFIED — publication rights research items 1, 4, 5]</p>
+</div>
+<div class="section">
+<h2 id="section-10">§10. Post-Submission Update — Apple's OCSP Responder Fix (July 22, 2026)</h2>
+<h3 id="101-the-fix-appears">10.1 The Fix Appears</h3>
+<p>On July 22, 2026, both Mac A and Mac B began returning <code>CSSMERR_TP_CERT_REVOKED</code> for the test certificate — even under active DNS poisoning. The initial hypothesis (July 23 ticket update) attributed this to a CRLite database update. Deeper analysis on July 24 disproved this hypothesis.</p>
+
+<h3 id="102-correction-not-crlite">10.2 Correction: Not CRLite — OCSP Responder Update</h3>
+<p>On July 24, 2026, direct database analysis conclusively ruled out CRLite and <code>valid.sqlite3</code> as the source of the fix:</p>
+<ul>
+<li><strong>CRLite is disabled</strong> on macOS Tahoe via feature flags: <code>trustd: UseCRLite is disabled (via feature flags)</code></li>
+<li><strong>Target serial absent:</strong> <code>SELECT COUNT(*) FROM serials WHERE serial = X'68A6...BDCC'</code> → 0 on both machines</li>
+<li><strong>CRLite tables still empty:</strong> <code>crlitefilters</code> = 0 rows, <code>crlitefiltercoverage</code> = 0 rows</li>
+<li><strong>Admin metadata wiped:</strong> <code>version</code>, <code>db_version</code>, <code>db_format</code> all NULL (previously v48)</li>
+<li><strong>PKITrustStore unchanged:</strong> Asset data files dated 2024-07-01, no update around July 22</li>
+<li><strong>PKITrustSupplementals unchanged:</strong> Posted date January 28, 2026</li>
+</ul>
+<p><strong>The actual fix:</strong> Apple updated their <strong>OCSP responder</strong> around July 22, 2026 to begin serving revocation responses for the Developer ID certificate used in our demonstrations. Both machines independently contacted the real OCSP server around the same date and cached the "revoked" response — explaining the identical timing.</p>
+<blockquote>
+<p>Source: <code>072426-mac-b-test/timestamped_logs_mac_b_072426/OCSP_CACHE_ORIGIN_ANALYSIS.md</code> — verification results</p>
+</blockquote>
+
+<h3 id="103-evidence-of-timing">10.3 Evidence: Simultaneous Caching on Both Machines</h3>
+<p>The critical evidence that this was a server-side change, not a local artifact:</p>
+<ul>
+<li><strong>Both machines cached revocation on the same date</strong> (July 22) — despite different hardware, different OS versions, and different testing histories</li>
+<li><strong>Sysdiagnose archives confirm bypass was active for 8 days before the fix:</strong> 21 confirmed instances of <code>rule 11 applies - allow=1</code> between July 14-18 across 4 sysdiagnose archives</li>
+<li><strong>First OCSP cached response:</strong> <code>OCSPSingleResponse: nextUpdate 0.09 days ago</code> appeared July 22 ~10:00 AM — the first time <code>trustd</code> received a real revocation response from the OCSP server</li>
+<li><strong>Fix timing:</strong> OCSP responder updated approximately 8 days after Apple received the researcher's July 14 rebuttal with full evidence</li>
+</ul>
+<blockquote>
+<p>Source: <code>072426-mac-b-test/timestamped_logs_mac_b_072426/13_sysdiag_jul22_ocsp_cache_origin.log</code> — first OCSP response entries</p>
+</blockquote>
+
+<h3 id="104-what-the-fix-covers">10.4 What the Fix Covers — and What It Doesn't</h3>
+<p>Apple's OCSP responder fix is <strong>cert-specific</strong> — it only protects against certificates Apple has explicitly updated the responder for. The underlying architecture remains unchanged:</p>
+<table>
+<thead>
+<tr><th>Layer</th><th>Status After Fix</th><th>Still Exploitable?</th></tr>
+</thead>
+<tbody>
+<tr><td>OCSP responder (for test cert)</td><td>Now serving revocation</td><td>Only if cached; DNS poison prevents re-check</td></tr>
+<tr><td>CRLite</td><td>Disabled via feature flags</td><td><strong>YES</strong> — zero coverage</td></tr>
+<tr><td>valid.sqlite3</td><td>No Developer ID serials</td><td><strong>YES</strong> — zero coverage</td></tr>
+<tr><td>syspolicyd rule 11</td><td>Still fails open</td><td><strong>YES</strong> — allows execution when OCSP unreachable</td></tr>
+<tr><td>OCSP responder (novel certs)</td><td>Unknown coverage</td><td><strong>YES</strong> — any cert not yet updated</td></tr>
+</tbody>
+</table>
+
+<h3 id="105-implications-for-disclosure">10.5 Implications for Disclosure</h3>
+<p>Apple's update validates the core finding: Gatekeeper enforcement on macOS Tahoe depended on network-reachable OCSP for Developer ID revocations. The fix — updating the OCSP responder to serve revocation responses — directly addresses the specific certificate chain reported between June 4 and July 15. We submitted a bounty request on July 23, 2026, initially attributing the fix to CRLite. On July 24, we submitted a correction identifying the actual mechanism (OCSP responder) while noting the architectural vulnerability remains.</p>
+<blockquote>
+<p>Source: <code>apple-submission-20260723/APPLE_TICKET_BOUNTY_REQUEST_20260723.md</code> — summary and request</p>
+</blockquote>
+<hr>
+</div>
+
+<div class="section">
+<h2 id="section-11">§11. July 24 Retest — Fix Confirmed, Architecture Unchanged</h2>
+
+<h3 id="111-campaign-50-retest">11.1 Campaign 5.0 Retest</h3>
+<p>On July 24, 2026, a full retest was conducted via Thunderbolt bridge DNS poisoning against Mac B. The retest confirmed:</p>
+<ul>
+<li><strong>DNS poisoning still works:</strong> All OCSP, notarization, CloudKit, and XProtect queries blocked</li>
+<li><strong>CRLite still disabled:</strong> <code>UseCRLite is disabled (via feature flags)</code></li>
+<li><strong>valid.sqlite3 still empty for Developer ID:</strong> Target serial returns 0 matches, admin values all NULL</li>
+<li><strong>Only blocker:</strong> Cached OCSP response from Apple's July 22 responder update</li>
+<li><strong>syspolicyd rule 11 still present:</strong> fail-open policy unchanged in the codebase</li>
+</ul>
+<p>The cached OCSP response is treated as permanent — it survives <code>trustd</code> and <code>syspolicyd</code> process restarts, and is still enforced even though the <code>nextUpdate</code> field shows the response expired 10 days ago.</p>
+
+<h3 id="112-bypass-duration">11.2 Bypass Duration: 8 Days of Continuous Fail-Open</h3>
+<p>Sysdiagnose archive analysis revealed the bypass was active for a continuous 8-day window:</p>
+<table>
+<thead>
+<tr><th>Date Range</th><th>Rule 11 Instances</th><th>Source</th></tr>
+</thead>
+<tbody>
+<tr><td>Jul 14, 16:12–22:19</td><td>9</td><td>Jul 14 sysdiag</td></tr>
+<tr><td>Jul 16, 21:19–23:19</td><td>3</td><td>Jul 17 sysdiag</td></tr>
+<tr><td>Jul 17, 21:53</td><td>1</td><td>Jul 18 sysdiag</td></tr>
+<tr><td>Jul 18, 00:16–01:16</td><td>2</td><td>Jul 18 sysdiag</td></tr>
+<tr><td>Jul 18, 15:17–23:47</td><td>6</td><td>Jul 19 sysdiag</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>21 instances</strong></td><td>4 sysdiags</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>Source: <code>072426-mac-b-test/timestamped_logs_mac_b_072426/14_rule11_bypass_timeline.log</code></p>
+</blockquote>
+<p>The bypass <strong>persisted without active attack maintenance</strong> — the original DNS poison on July 14 was sufficient. No attacker intervention was needed during the 8-day window.</p>
+
+<h3 id="113-novel-cert-attack">11.3 Remaining Attack Surface: Novel Certificates</h3>
+<p>Apple's fix is <strong>reactive</strong> — they update the OCSP responder after a cert is reported/known. Any Developer ID certificate the OCSP responder hasn't been updated to cover will still bypass Gatekeeper under DNS poison:</p>
+<ul>
+<li><strong>Stolen certificates:</strong> A cert obtained through compromise, before Apple updates the responder</li>
+<li><strong>Purchased certificates:</strong> Developer ID accounts sold on dark markets</li>
+<li><strong>Newly revoked certificates:</strong> Any cert revoked after the victim's last successful OCSP check</li>
+<li><strong>Social-engineered certificates:</strong> Developer accounts created with fraudulent identities</li>
+</ul>
+<p>The attack scenario:</p>
+<pre><code>1. Attacker obtains revoked/stolen Developer ID cert (not yet in OCSP responder)
+2. Signs malware, packages as DMG
+3. Poisons DNS: ocsp.apple.com → 127.0.0.1, ocsp2.apple.com → 127.0.0.1
+4. Victim opens DMG → trustd OCSP check fails → connection refused
+5. No local fallback (valid.sqlite3 empty for Dev ID, CRLite disabled)
+6. syspolicyd: "rule 11 applies - allow=1"
+7. Gatekeeper allows execution → malware runs</code></pre>
+<p>This attack would succeed exactly as it did during the July 14-18 testing window — the only thing that changed is Apple's OCSP responder coverage for <em>one specific cert</em>.</p>
+
+<h3 id="114-strategic-observation">11.4 Strategic Observation: Apple's "Controlled Comparison" Request</h3>
+<p>On July 14, Apple's Product Security reviewer requested a "controlled comparison on the same system in a healthy state, where the app is first confirmed to be blocked as revoked with the Apple servers reachable." Complying with this request required the test machine to contact the real OCSP server, which would cache the revoked response.</p>
+<p>Whether deliberate or coincidental, this request pattern — demonstrate normal behavior → machine contacts real OCSP → cache populated → future bypass tests fail on that machine — is worth documenting. However, sysdiagnose analysis proves the bypass was still active for 5 more days (Jul 14-18, 21 rule 11 instances) after compliance, and the actual fix was Apple's server-side OCSP responder update on July 22.</p>
+<blockquote>
+<p>Source: <code>apple-submission-20260723/APPLE_TICKET_THREAD_OE1107167498810_20260724.md</code> — strategic analysis section</p>
+</blockquote>
+
+<h3 id="115-conclusion">11.5 Conclusion</h3>
+<p>Apple deployed a cert-specific fix approximately 8 days after receiving the researcher's detailed rebuttal. This confirms:</p>
+<ol>
+<li><strong>The vulnerability was real</strong> — Apple fixed the exact mechanism reported</li>
+<li><strong>The bypass worked for 8 days</strong> before Apple's fix took effect (Jul 14-22)</li>
+<li><strong>The fix is incomplete</strong> — architectural fail-open policy unchanged; novel certs still exploitable</li>
+<li><strong>The bounty is justified</strong> — vendor deployed a fix in direct response to reported evidence</li>
+<li><strong>Full remediation requires:</strong> populating CRLite tables, adding Developer ID serials to valid.sqlite3, or changing rule 11 to fail-closed</li>
+</ol>
+<p>Until Apple addresses the architectural fail-open policy, any network MITM position (coffee shop WiFi, rogue AP, compromised router) allows a complete Gatekeeper bypass on every Apple Silicon Mac running macOS Tahoe — using any revoked Developer ID certificate not yet covered by the OCSP responder.</p>
+</div>
+
+<div class="section">
+<h2 id="section-12">§12. Apple's "Intended Behavior" Admission (July 28, 2026)</h2>
+
+<h3 id="121-apples-response">12.1 Apple's Response</h3>
+<p>On July 28, 2026 — 19 days after the initial report and 14 days after the detailed rebuttal — Apple Product Security responded with their first substantive technical assessment. The full text confirms the fail-open behavior as an intentional architectural decision:</p>
+
+<blockquote>
+<p>"Thanks for the detailed follow-ups, and for correcting your own analysis on July 24. That was useful and it is appreciated."</p>
+<p>"The behavior you observed is intended."</p>
+<p>"When a revocation check cannot reach the responder and the machine holds no previously cached revoked response for that certificate, the evaluation soft-fails."</p>
+<p>"Failing closed in that situation would block apps from launching whenever a device is offline, behind enterprise egress filtering, on a captive portal, or on an unreliable network — not a tradeoff we can make."</p>
+<p>"A cached revoked response is pinned permanently. Once a machine has seen the revocation, it stays blocked."</p>
+</blockquote>
+
+<p>Apple also provided technical clarification on two log entries previously misinterpreted:</p>
+<ul>
+<li><code>"ocsp responder: did not include status"</code> — from <code>SecORVCConsumeOCSPResponse</code>: a received and parsed OCSP response that lacked the requested cert's status (NOT a blocked network query)</li>
+<li><code>"nextUpdate N days ago"</code> — from <code>SecOCSPSingleResponseCalculateValidity</code>: a cached response past its freshness window (NOT a failed network request)</li>
+</ul>
+<p>Apple pointed to their open-source <code>trustd</code> implementation: <a href="https://github.com/apple-oss-distributions/Security/tree/Security-61901.120.67">github.com/apple-oss-distributions/Security/tree/Security-61901.120.67</a></p>
+
+<blockquote>
+<p>Source: Apple Security Bounty ticket OE1107167498810, response dated 7/28/26</p>
+</blockquote>
+
+<h3 id="122-implications">12.2 Implications of "Intended Behavior"</h3>
+<p>Apple's admission has three critical implications:</p>
+<ol>
+<li><strong>Full publication rights:</strong> Apple has confirmed the behavior is intentional and pointed to public source code. There is no pending fix, no embargo period, and no expectation of confidentiality for behavior the vendor has called "intended."</li>
+<li><strong>Bounty denial likely:</strong> By calling the behavior "intended," Apple has positioned to deny the bounty — you cannot award a bounty for a non-vulnerability.</li>
+<li><strong>CVE eligibility confirmed:</strong> Apple's framing does not prevent CVE assignment. MITRE has explicitly ruled (CVE-2024-37408) that "CVE is not about fixes" — a vendor calling behavior "intended" or "by design" does not prevent CVE assignment when the behavior produces a security-relevant outcome.</li>
+</ol>
+
+<h3 id="123-the-cache-only-defense">12.3 Weakness of the "Cached Response" Defense</h3>
+<p>Apple's sole mitigation — "a cached revoked response is pinned permanently" — only works under specific conditions:</p>
+<table>
+<thead>
+<tr><th>Scenario</th><th>Cache Present?</th><th>Protected?</th></tr>
+</thead>
+<tbody>
+<tr><td>Victim previously checked this exact cert via OCSP</td><td>Yes</td><td>✅ Yes</td></tr>
+<tr><td>Fresh Mac / newly provisioned device</td><td>No</td><td>❌ No</td></tr>
+<tr><td>Newly revoked cert (revoked after victim's last OCSP check)</td><td>No</td><td>❌ No</td></tr>
+<tr><td>Stolen/purchased cert (never previously revoked)</td><td>No</td><td>❌ No</td></tr>
+<tr><td>Attacker present since before first launch</td><td>No (OCSP poisoned on first contact)</td><td>❌ No</td></tr>
+<tr><td>Cert revoked between CRLite pushes (CRLite is disabled anyway)</td><td>No</td><td>❌ No</td></tr>
+</tbody>
+</table>
+<p>The cache is a <strong>reactive</strong> defense — it only protects against certificates the victim has <em>already</em> successfully checked. For any previously-unseen revoked certificate, there is zero protection under DNS poisoning. Apple's defense assumes a cooperative network — the exact thing the attack removes.</p>
+
+<div class="figure-placeholder">
+  <span class="fig-label">FIGURE 4 — TODO: CREATE IMAGE</span>
+  <div class="fig-type">Diagram type: Coverage matrix heatmap (6 rows × 3 columns)</div>
+  <div class="fig-brief">
+    <strong>Purpose:</strong> Visualize the cache-only defense's coverage gaps across real-world scenarios, making it immediately clear that the majority of scenarios are unprotected.<br>
+    <strong>Section:</strong> §12.3 Weakness of the "Cached Response" Defense<br>
+    <strong>Audience takeaway:</strong> Cache pinning protects 1 of 6 realistic scenarios. The majority of real-world conditions — fresh Macs, newly revoked certs, attacker-present-since-first-launch — have zero protection.<br>
+    <strong>Layout:</strong> Table/heatmap with 6 scenario rows and 3 columns (Scenario | Cache Present? | Protected?)<br>
+    &nbsp;&nbsp;Row 1: "Victim previously checked this cert" → Yes → ✅ Protected (green)<br>
+    &nbsp;&nbsp;Row 2: "Fresh Mac / newly provisioned" → No → ❌ Unprotected (red)<br>
+    &nbsp;&nbsp;Row 3: "Newly revoked cert (revoked after last check)" → No → ❌ Unprotected (red)<br>
+    &nbsp;&nbsp;Row 4: "Stolen/purchased cert (never previously revoked)" → No → ❌ Unprotected (red)<br>
+    &nbsp;&nbsp;Row 5: "Attacker present since before first launch" → No → ❌ Unprotected (red)<br>
+    &nbsp;&nbsp;Row 6: "Cert revoked between CRLite pushes" → No → ❌ Unprotected (red)<br>
+    <strong>Summary badge:</strong> "1 of 6 scenarios protected (17%)" — large, centered below matrix<br>
+    <strong>Approved labels:</strong> "Cache Present?", "Protected?", "Fresh Mac", "Newly Revoked", "Stolen Cert", "Attacker Pre-Launch", "CRLite Disabled"<br>
+    <strong>Prohibited labels:</strong> Real certificate details, attack tool names, specific dates<br>
+    <strong>Data bindings:</strong> §12.3 cache coverage table (derived from Apple's July 28 response and Database analysis)<br>
+    <strong>Style:</strong> Heatmap-style coloring: green cell for protected, red for unprotected. Large ✅/❌ icons. Clean sans-serif. Summary badge in bold red.
+  </div>
+  <div class="fig-caption">Figure 4: Cache-only defense coverage matrix. Apple's sole mitigation — permanent pinning of cached revoked responses — protects only 1 of 6 realistic scenarios. The remaining 83% of scenarios have zero revocation protection under DNS poisoning.</div>
+  <div class="fig-alt">Alt text: Coverage matrix heatmap showing 6 scenarios for Apple's cache-based revocation defense. Only 1 scenario (previously checked certificate) is protected. Five scenarios including fresh Macs, newly revoked certs, stolen certs, and attacker-present-since-first-launch are unprotected, yielding 17% coverage.</div>
+</div>
+
+<h3 id="124-the-offline-tradeoff-rebuttal">12.4 The "Offline Tradeoff" Rebuttal</h3>
+<p>Apple argued: "Failing closed would block apps from launching whenever a device is offline."</p>
+<p>This argument has three weaknesses:</p>
+<ol>
+<li><strong>CRLite would solve this</strong> — Apple already built CRLite, an offline bloom filter-based revocation system that requires no network access. It is present in the <code>valid.sqlite3</code> schema but disabled via feature flags. If CRLite were enabled, the "offline vs. security" tradeoff would disappear — the system could fail closed for revoked certificates without requiring network access. Apple built the solution to their own argument and then turned it off.</li>
+<li><strong>The attack is not "offline"</strong> — the victim's internet works perfectly. Only Apple security domains are poisoned. The user can browse the web, check email, and use all services normally. Apple's offline scenario is not the threat model.</li>
+<li><strong>The tradeoff is configurable</strong> — other vendors implement graduated responses: block execution if revocation status is "unknown" for high-risk operations (first launch, Developer ID), allow for low-risk (previously-validated apps). Apple chose the most permissive option for all cases.</li>
+</ol>
+<hr>
+</div>
+
+<div class="section">
+<h2 id="section-13">§13. CVE Precedent Research — Industry Comparison</h2>
+
+<h3 id="131-the-ghsa-contradiction">13.1 The GHSA-8f6j-263m-g72x Contradiction — Apple's Own Code</h3>
+<p>In June 2026, Apple fixed a vulnerability in their own <strong>App Store Server Python Library</strong> (<code>apple/app-store-server-library-python</code>) that is classified under the same CWEs as our finding:</p>
+<table>
+<thead>
+<tr><th>Property</th><th>Apple's Library (GHSA-8f6j-263m-g72x)</th><th>Our Finding (macOS trustd)</th></tr>
+</thead>
+<tbody>
+<tr><td>Product</td><td>App Store Server Library (Python)</td><td>macOS Tahoe trustd/syspolicyd</td></tr>
+<tr><td>Vulnerability</td><td>Accepts stale OCSP GOOD responses; never validates freshness window</td><td>Skips OCSP check entirely when responder unreachable</td></tr>
+<tr><td>Impact</td><td>Revoked certificate accepted as valid</td><td>Revoked certificate accepted as valid</td></tr>
+<tr><td>CWEs</td><td>CWE-295, CWE-299</td><td>CWE-636, CWE-299, CWE-295</td></tr>
+<tr><td>Apple's action</td><td><strong>Fixed it</strong> (commit 6cf8778, June 1, 2026)</td><td>Called it <strong>"intended behavior"</strong></td></tr>
+<tr><td>Public advisory</td><td><a href="https://github.com/advisories/GHSA-8f6j-263m-g72x">GHSA-8f6j-263m-g72x</a></td><td>None</td></tr>
+</tbody>
+</table>
+<p><strong>The question Apple cannot answer:</strong> Why is OCSP revocation bypass a fixable vulnerability in the App Store Server Library but "intended behavior" in macOS trustd? Both are Apple products. Both involve accepting certificates without effective revocation verification. Both share CWE-295 and CWE-299. Apple fixed one and called the other "intended."</p>
+<blockquote>
+<p>Source: <a href="https://github.com/advisories/GHSA-8f6j-263m-g72x">github.com/advisories/GHSA-8f6j-263m-g72x</a> — public advisory, accessed 2026-07-29</p>
+</blockquote>
+
+<h3 id="132-ocsp-bypass-cves">13.2 OCSP Bypass CVEs — Industry Consensus</h3>
+<p>Four CVEs/advisories demonstrate that the industry unanimously treats OCSP revocation bypass as a vulnerability worthy of CVE assignment:</p>
+<table>
+<thead>
+<tr><th>CVE/Advisory</th><th>Product</th><th>Description</th><th>CWE</th><th>Fixed?</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2026-56821">CVE-2026-56821</a></td><td>Netty</td><td>OCSP freshness check exists but does not stop processing — expired GOOD response treated as VALID</td><td>CWE-299</td><td>Yes</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/cve-2026-24734">CVE-2026-24734</a></td><td>Apache Tomcat</td><td>Did not complete verification or freshness checks on OCSP response → revocation bypass</td><td>CWE-20</td><td>Yes</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2026-32144">CVE-2026-32144</a></td><td>Erlang OTP</td><td>OCSP designated-responder authorization bypass via missing signature verification</td><td>CWE-295</td><td>Yes</td></tr>
+<tr><td><a href="https://github.com/advisories/GHSA-8f6j-263m-g72x">GHSA-8f6j-263m-g72x</a></td><td>Apple (!)</td><td>Accepts stale OCSP responses, never validates freshness</td><td>CWE-295, CWE-299</td><td>Yes</td></tr>
+</tbody>
+</table>
+<p><strong>Key finding:</strong> Every other vendor — including Apple's own server-side code — has fixed OCSP revocation bypass vulnerabilities and assigned CVEs. macOS trustd is the <strong>only product</strong> where the vendor calls the same class of behavior "intended."</p>
+
+<h3 id="133-gatekeeper-bypass-cves">13.3 Gatekeeper Bypass CVEs on Same OS</h3>
+<p>Apple has assigned 7 CVEs for Gatekeeper bypasses on macOS between 2022–2026:</p>
+<table>
+<thead>
+<tr><th>CVE</th><th>Year</th><th>CWE</th><th>Fixed In</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2022-22616">CVE-2022-22616</a></td><td>2022</td><td>—</td><td>macOS 12.3</td><td>ZIP archive bypass</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2022-32910">CVE-2022-32910</a></td><td>2022</td><td>CWE-693</td><td>macOS 12.5</td><td>Archive bypass</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2022-42821">CVE-2022-42821</a></td><td>2022</td><td>CWE-693</td><td>macOS 13</td><td>Logic issue</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2023-41067">CVE-2023-41067</a></td><td>2023</td><td>—</td><td>macOS 14</td><td>Logic issue</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2025-24148">CVE-2025-24148</a></td><td>2025</td><td>CWE-354</td><td>macOS 15.4</td><td>JAR file bypass</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2025-43296">CVE-2025-43296</a></td><td>2025</td><td>—</td><td>macOS 26</td><td>Logic issue (same OS as our finding)</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/cve-2026-64708">CVE-2026-64708</a></td><td>2026</td><td>CWE-693</td><td>macOS 26.6</td><td>File quarantine bypass (same OS as our finding)</td></tr>
+</tbody>
+</table>
+<p><strong>Critical observation:</strong> <a href="https://nvd.nist.gov/vuln/detail/cve-2026-64708">CVE-2026-64708</a> is a Gatekeeper bypass fixed on macOS Tahoe 26.6 — the <strong>same OS version</strong> where Apple calls our finding "intended." Both are CWE-693 (Protection Mechanism Failure). Apple patched one but not the other.</p>
+
+<h3 id="134-by-design-cves">13.4 "By Design" CVEs That Stayed Assigned</h3>
+<p>Four precedent CVEs demonstrate that a vendor calling behavior "by design" or "won't fix" does not prevent CVE assignment:</p>
+<table>
+<thead>
+<tr><th>CVE</th><th>Vendor</th><th>Vendor's Position</th><th>CVE Stayed?</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2024-37408">CVE-2024-37408</a></td><td>fprintd</td><td>"Not a security flaw" / "by design, does not permit an attention mechanism"</td><td><strong>Yes</strong> — MITRE: "CVE is not about fixes"</td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-14145">CVE-2020-14145</a></td><td>OpenSSH</td><td>Inherent property of protocol design; WONTFIX</td><td><strong>Yes</strong></td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2017-6297">CVE-2017-6297</a></td><td>MikroTik</td><td>Design flaw — L2TP doesn't persist IPsec settings after reboot</td><td><strong>Yes</strong></td></tr>
+<tr><td><a href="https://nvd.nist.gov/vuln/detail/CVE-2023-51767">CVE-2023-51767</a></td><td>OpenSSH</td><td>"Upstream-wontfix"</td><td><strong>Yes</strong></td></tr>
+</tbody>
+</table>
+
+<h3 id="135-the-killer-precedent">13.5 The Killer Precedent: CVE-2024-37408</h3>
+<p>MITRE's response to fprintd's "by design" dispute is the single most important precedent for our CVE submission. The vendor's exact words were: <em>"this is not an fprintd issue, and it cannot be considered a security flaw in fprintd, and therefore we believe that it should not have been assigned a CVE number."</em></p>
+<p>MITRE's response (source: <a href="https://www.openwall.com/lists/oss-security/2024/06/14/3">openwall.com/lists/oss-security/2024/06/14/3</a>):</p>
+<blockquote>
+<p>"We understand that nothing within fprintd/pam_fprintd.so is going to be changed in order to attempt to 'fix' the reported concern. However, CVE is not about fixes. CVE consumers may wish to discuss the reported outcome of 'unexpected actions might be authorized' regardless of where any type of fix is ultimately implemented, or even if nobody ever implements a fix. We have no plans to either reject or transfer CVE-2024-37408."</p>
+</blockquote>
+<p>Our situation is nearly identical:</p>
+<ul>
+<li><strong>fprintd:</strong> "Not a security flaw" / "by design" → MITRE: "CVE is not about fixes" → CVE stayed</li>
+<li><strong>Apple trustd:</strong> "Intended behavior" → CVE consumers need to know that revoked certificates are accepted → CVE should be assigned</li>
+</ul>
+
+<h3 id="136-cwe-classifications">13.6 Applicable CWE Classifications</h3>
+<table>
+<thead>
+<tr><th>CWE</th><th>Name</th><th>Application</th><th>Precedent CVEs</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>CWE-636</strong></td><td>Not Failing Securely (Failing Open)</td><td>Textbook: security mechanism fails → permissive state</td><td>—</td></tr>
+<tr><td>CWE-299</td><td>Improper Check for Certificate Revocation</td><td>Revocation not effectively checked</td><td>CVE-2026-56821, GHSA-8f6j-263m-g72x</td></tr>
+<tr><td>CWE-295</td><td>Improper Certificate Validation</td><td>Validation incomplete (revocation leg skipped)</td><td>CVE-2026-32144, GHSA-8f6j-263m-g72x</td></tr>
+<tr><td>CWE-693</td><td>Protection Mechanism Failure</td><td>Gatekeeper revocation protection fails</td><td>CVE-2022-32910, CVE-2022-42821, CVE-2026-64708</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>Source: CVE precedent analysis based on public Apple security advisories and NVD records.</p>
+</blockquote>
+<hr>
+</div>
+
+<div class="section">
+<h2 id="section-14">§14. CVE Filing Strategy and MITRE CNA-LR Path</h2>
+
+<h3 id="141-two-stage-approach">14.1 Two-Stage Approach</h3>
+<p>CVE assignment for Apple products follows a two-stage process:</p>
+<ol>
+<li><strong>Stage 1: Apple as CNA (expected outcome: decline)</strong> — Apple is the CVE Numbering Authority for macOS. Having called the behavior "intended," they are unlikely to self-assign a CVE. This is the expected first step, not the goal.</li>
+<li><strong>Stage 2: MITRE CNA-LR dispute (target: 60-75% success)</strong> — Once Apple declines, the researcher requests MITRE's CNA of Last Resort to assign under the dispute resolution process. Per CNA Rules v4.0: "If the CNA does not assign, for any reason, then another CNA with appropriate scope can assign."</li>
+</ol>
+
+<h3 id="142-the-ghsa-rebuttal">14.2 The GHSA Contradiction Rebuttal</h3>
+<p>Before filing the CVE, the researcher will post a rebuttal to Apple's ticket asking them to explain the inconsistency between their fix for GHSA-8f6j-263m-g72x and their "intended behavior" classification of the same vulnerability class in trustd. The three questions:</p>
+<ol>
+<li>What is the policy basis for treating OCSP revocation bypass as fixable in the App Store Server Library but "intended" in macOS trustd?</li>
+<li>Is the distinction based on failure mode (stale acceptance vs. fail-open), product class (server library vs. OS), or something else?</li>
+<li>If the offline-launch tradeoff is the reason, why does that tradeoff not apply to server-side code (which also experiences network failures)?</li>
+</ol>
+<p>Apple's response (or silence) becomes evidence for the CNA-LR dispute. If they cannot articulate a meaningful distinction, their "intended" claim is exposed as inconsistent.</p>
+
+<h3 id="143-cve-program-rules">14.3 CVE Program Rules That Support Assignment</h3>
+<p>Five provisions of the CVE Program's operational rules support assignment despite Apple's "intended" claim:</p>
+<ol>
+<li><strong>Rule 4.1.4 — Insecure Default Configuration Settings:</strong> "Insecure default configuration settings SHOULD be determined to be Vulnerabilities." (<a href="https://www.cve.org/Resources/Roles/Cnas/CNA_Rules_v4.1.0.pdf">CNA Rules v4.1.0</a>) — The fail-open is an insecure default. CRLite — the offline defense that would prevent fail-open — is disabled by default.</li>
+<li><strong>"Documented Behavior" exception does NOT apply</strong> — The fail-open is not documented in Apple's Platform Security Guide, was discovered through research, and Apple's own 2020 promise to deliver "strong protections against server failure" acknowledges the behavior as a problem worth fixing.</li>
+<li><strong>CNA-LR process:</strong> "The CNA with the most appropriate scope gets the first opportunity to assign. If the CNA does not assign, for any reason, then another CNA with appropriate scope can assign." (<a href="https://medium.com/@cve_program/cna-rules-version-4-0-update-and-transition-8f9d11a59c02">CNA Rules v4.0</a>)</li>
+<li><strong>"CVE is not about fixes":</strong> MITRE explicitly stated this in the CVE-2024-37408 dispute. Apple's intent to not fix does not prevent assignment.</li>
+<li><strong>Publicly disclosed:</strong> "CNAs SHOULD assign a CVE ID if: the CNA has reasonable evidence to determine the existence of a Vulnerability, and the Vulnerability has been or is expected to be Publicly Disclosed." — Apple's open-source trustd code constitutes public disclosure.</li>
+</ol>
+
+<h3 id="144-filing-timeline">14.4 Filing Timeline</h3>
+<table>
+<thead>
+<tr><th>Step</th><th>Trigger</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>Apple denies bounty or restates "intended"</td><td>Post GHSA contradiction rebuttal to ticket</td></tr>
+<tr><td>2</td><td>7 days after rebuttal with no substantive response</td><td>File CVE at <a href="https://cveform.mitre.org/">cveform.mitre.org</a> with CNA-LR dispute request</td></tr>
+<tr><td>3</td><td>CVE filed</td><td>Wait for MITRE decision (typically 2-8 weeks)</td></tr>
+<tr><td>4</td><td>CVE assigned</td><td>Update paper, notify Apple of 90-day disclosure timeline</td></tr>
+</tbody>
+</table>
+
+<h3 id="145-top-3-precedents">14.5 Top 3 Precedents for Filing</h3>
+<ol>
+<li><strong><a href="https://github.com/advisories/GHSA-8f6j-263m-g72x">GHSA-8f6j-263m-g72x</a> (Apple's own library):</strong> Same vendor, same vulnerability class, Apple fixed it. Proves Apple recognizes this class as a vulnerability — contradicting their "intended" claim for trustd.</li>
+<li><strong><a href="https://nvd.nist.gov/vuln/detail/CVE-2026-56821">CVE-2026-56821</a> (Netty):</strong> Closest mechanism match — check exists but not enforced, on-path attacker bypasses revocation. Same CWE-299. CVSS 7.4 HIGH.</li>
+<li><strong><a href="https://nvd.nist.gov/vuln/detail/CVE-2024-37408">CVE-2024-37408</a> (fprintd):</strong> Closest vendor-response match — vendor said "by design," MITRE said "CVE is not about fixes" and kept the CVE.</li>
+</ol>
+
+<h3 id="146-likelihood-assessment">14.6 Likelihood Assessment</h3>
+<p><strong>Stage 1 (Apple assigns as CNA): 10-20%</strong> — Apple has already called it "intended." They will not self-assign.</p>
+<p><strong>Stage 2 (MITRE CNA-LR assigns): 60-75%</strong> — The precedent overwhelmingly favors assignment. The GHSA-8f6j-263m-g72x contradiction, the CVE-2024-37408 "CVE is not about fixes" ruling, and the CRLite disabled evidence collectively make a strong case.</p>
+<p>Factors that could push to 80%+:</p>
+<ul>
+<li>Apple's inability to explain the GHSA-8f6j-263m-g72x distinction (documented in ticket)</li>
+<li>Independent reproduction by a third-party researcher</li>
+<li>Published technical writeup with reproducible steps</li>
+<li>Public discussion on oss-security mailing list</li>
+</ul>
+<hr>
+</div>
+
+<div class="section">
+<h2 id="section-15">§15. Apple's 2020 Promise — "Strong Protections Against Server Failure"</h2>
+
+<h3 id="151-the-big-sur-incident">15.1 The Big Sur OCSP Outage (November 2020)</h3>
+<p>On November 12, 2020, macOS Big Sur's release overwhelmed Apple's OCSP responder infrastructure, causing widespread app launch failures across the Mac ecosystem. The incident began when a server-side misconfiguration interfered with macOS's ability to cache Developer ID OCSP responses, combined with an unrelated CDN misconfiguration. Users experienced multi-minute hangs when launching third-party applications.</p>
+<p>The incident drew significant public attention, most notably from security researcher Jeffrey Paul, whose blog post "Your Computer Isn't Yours" raised privacy concerns about unencrypted OCSP queries to <code>ocsp.apple.com</code>. Jeff Johnson identified the root cause: <code>trustd</code> connecting to <code>ocsp.apple.com</code> with OCSP configured as a soft failure.</p>
+
+<h3 id="152-apples-official-response">15.2 Apple's Official Response and Three Commitments</h3>
+<p>On November 15, 2020, Apple updated their support document "Safely open apps on your Mac" with a new "Privacy protections" section. The statement included three explicit commitments for the coming year:</p>
+<blockquote>
+<p>"In addition, over the next year we will introduce several changes to our security checks:"</p>
+<ul>
+<li>"A new encrypted protocol for Developer ID certificate revocation checks"</li>
+<li>"<strong>Strong protections against server failure</strong>"</li>
+<li>"A new preference for users to opt out of these security protections"</li>
+</ul>
+</blockquote>
+<p>Apple separately told iPhone in Canada that the outage was caused by "a server-side misconfiguration that specifically interfered with macOS being able to cache Developer ID OCSP responses," and that they had fixed it through a server-side update allowing longer OCSP cache durations.</p>
+
+<h3 id="153-what-they-delivered">15.3 What Apple Delivered vs. What They Promised</h3>
+<table>
+<thead>
+<tr><th>Promise (Nov 2020)</th><th>Status (July 2026)</th><th>Assessment</th></tr>
+</thead>
+<tbody>
+<tr><td>Encrypted protocol for revocation checks</td><td>✅ Shipped (HTTPS to ocsp.apple.com)</td><td>Privacy fix — addresses eavesdropping on OCSP queries</td></tr>
+<tr><td><strong>Strong protections against server failure</strong></td><td>❌ <strong>Not delivered for adversarial conditions</strong></td><td><strong>Security fix — never fulfilled. 3-second timeout → fail-open remains.</strong></td></tr>
+<tr><td>User opt-out preference</td><td>✅ Shipped (System Settings toggle)</td><td>Usability feature — allows disabling checks entirely</td></tr>
+</tbody>
+</table>
+
+<p>Apple fulfilled two of three promises. The middle commitment — "strong protections against server failure" — was only partially addressed. Apple fixed <em>accidental</em> server failure (the 2020 outage was a misconfiguration/capacity issue) by improving OCSP caching durations. But <em>adversarial</em> server failure — an attacker blocking <code>ocsp.apple.com</code> for 3 seconds via DNS poisoning — produces the identical outcome: revocation check fails, app launches. Apple treats the accidental case as a bug worth fixing and the adversarial case as "intended behavior."</p>
+
+<h3 id="154-the-six-year-gap">15.4 The Six-Year Gap</h3>
+<p>The fail-open behavior that caused the 2020 Big Sur outage is the same behavior demonstrated in this paper's 2026 attacks. The difference is causation:</p>
+<ul>
+<li><strong>2020:</strong> Server-side misconfiguration → OCSP unreachable → fail-open → apps won't launch (but revocation bypassed)</li>
+<li><strong>2026:</strong> Attacker DNS poisoning → OCSP unreachable → fail-open → revoked app launches (revocation bypassed)</li>
+</ul>
+<p>Same mechanism. Same fail-open. Same security impact (revocation checking skipped). Apple acknowledged the first as a problem worth fixing. They call the second "intended behavior."</p>
+<p>Ars Technica noted in their 2020 coverage: "A revocation method known as CRLite may ultimately provide a solution to this failing." Six years later, CRLite exists in Apple's <code>trustd</code> source code but is disabled via feature flag (<code>_SecTrustUseCRLiteEnforcement()</code> returns false). The solution identified in 2020 was implemented but never activated.</p>
+
+<div class="figure-placeholder">
+  <span class="fig-label">FIGURE 5 — TODO: CREATE IMAGE</span>
+  <div class="fig-type">Diagram type: Horizontal timeline (left to right, 5 milestones)</div>
+  <div class="fig-brief">
+    <strong>Purpose:</strong> Visualize the six-year gap between Apple's public commitment to fix server failure protections and the current unfixed state, establishing this as a long-standing unaddressed issue rather than a novel discovery.<br>
+    <strong>Section:</strong> §15.4 The Six-Year Gap<br>
+    <strong>Audience takeaway:</strong> Apple acknowledged this problem in 2020, promised to fix it, shipped the privacy and usability fixes, but left the core security issue unfixed for six years. CRLite — the identified solution — was built but never enabled.<br>
+    <strong>Milestones (left to right):</strong><br>
+    &nbsp;&nbsp;1. <strong>Nov 2020:</strong> Big Sur OCSP Outage — apps won't launch. Icon: warning triangle.<br>
+    &nbsp;&nbsp;2. <strong>Nov 15, 2020:</strong> Apple's 3 commitments: encrypted OCSP ✅, strong protections against server failure ❌, opt-out toggle ✅. Icon: document/promise.<br>
+    &nbsp;&nbsp;3. <strong>2021-2025:</strong> Five years of silence. Encrypted OCSP shipped. CRLite code written but disabled. Fail-open untouched. Icon: clock/gap.<br>
+    &nbsp;&nbsp;4. <strong>Jul 2026:</strong> Researcher proves exploitability — DNS poison → 3-second timeout → fail-open → bypass. Icon: bug/exploit.<br>
+    &nbsp;&nbsp;5. <strong>Jul 28, 2026:</strong> Apple responds: "The behavior you observed is intended." Icon: speech bubble with quote.<br>
+    <strong>Annotation between milestones 2 and 4:</strong> Large bracket labeled "6 YEARS — Promise Unfulfilled" in red<br>
+    <strong>Annotation below milestone 3:</strong> "CRLite: built but disabled (_SecTrustUseCRLiteEnforcement = false)"<br>
+    <strong>Approved labels:</strong> "Big Sur Outage", "3 Commitments", "Encrypted OCSP ✅", "Server Failure Protections ❌", "Opt-Out ✅", "CRLite Built but Disabled", "DNS Poison Exploit", "Intended Behavior", "6 Years"<br>
+    <strong>Prohibited labels:</strong> Researcher name, ticket numbers, internal Apple communications<br>
+    <strong>Data bindings:</strong> §15.1 (Big Sur incident), §15.2 (Apple's 3 commitments), §15.3 (delivered vs promised table), §15.4 (six-year gap), §12.1 (Apple's July 28 response)<br>
+    <strong>Style:</strong> Horizontal timeline with milestone markers. Green checkmarks for delivered items, red X for unfulfilled. Large red bracket spanning 2020-2026. Clean flat design. Monospace for code identifiers.
+  </div>
+  <div class="fig-caption">Figure 5: The six-year gap. Apple acknowledged OCSP server failure as a problem in November 2020 and committed to "strong protections against server failure." Six years later, the fail-open remains unmitigated. CRLite — the identified solution — exists in the codebase but is disabled.</div>
+  <div class="fig-alt">Alt text: Horizontal timeline from November 2020 to July 2026 showing five milestones: Big Sur OCSP outage, Apple's three commitments (two delivered, one not), five years of silence with CRLite built but disabled, researcher exploit demonstration, and Apple's intended behavior response. A red bracket spans the six-year gap labeled as promise unfulfilled.</div>
+</div>
+
+<h3 id="155-implications-for-disclosure">15.5 Implications for Disclosure</h3>
+<p>Apple's 2020 statement has two implications for the current disclosure:</p>
+<ol>
+<li><strong>It contradicts "intended behavior."</strong> Apple explicitly promised "strong protections against server failure" — the exact condition our attack exploits. If the fail-open was truly intended, why promise to protect against it? The promise acknowledges the behavior as a problem; the 2026 denial reframes it as acceptable.</li>
+<li><strong>It establishes a six-year unfixed timeline.</strong> The vulnerability was publicly identified in 2020, Apple committed to fixing it, and six years later the core security issue remains unaddressed. This timeline is relevant for CVE assignment (demonstrating the issue is not newly discovered but is a long-standing unfixed problem) and for public disclosure (the finding is not a zero-day but a confirmation that a known issue remains exploitable).</li>
+</ol>
+
+<blockquote>
+<p>Sources: Apple support document "Safely open apps on your Mac" (November 15, 2020 update); The Verge, "Apple responds to privacy concerns over Mac software security process" (November 16, 2020); Ars Technica, "Mac certificate check stokes fears that Apple logs every app you run" (November 2020); iPhone in Canada, "Apple Responds to macOS Privacy Concerns" (November 15, 2020); 9to5Mac, "Apple explains addresses Mac privacy concerns" (November 15, 2020).</p>
+</blockquote>
+<hr>
+</div>
+
+
+</body>
+</html>
